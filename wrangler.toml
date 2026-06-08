@@ -1,0 +1,47 @@
+name = "punchin-feedback"
+main = "src/index.js"
+compatibility_date = "2026-06-06"
+
+# Static brand assets (CSS + self-hosted Noto WOFF2). Asset-first routing with
+# not_found_handling="none" means only real files under ./assets/ are served
+# directly; every other path falls through to the Worker's fetch(). Do NOT add
+# assets/index.html, or "/" would be served as a file instead of redirecting.
+[assets]
+directory = "./assets/"
+binding = "ASSETS"
+not_found_handling = "none"
+
+# Daily image-retention sweep (deletes screenshots past min(1yr-from-upload/reopen,
+# 30d-from-close)). UTC.
+[triggers]
+crons = ["0 3 * * *"]
+
+# Reporter map, template cache, GH-token cache, webhook dedup, rate-limit,
+# image-expiry markers. Create with: wrangler kv namespace create FEEDBACK
+[[kv_namespaces]]
+binding = "FEEDBACK"
+id = "PLACEHOLDER_KV_ID"
+
+# Uploaded screenshots. Create with: wrangler r2 bucket create punchin-feedback-attachments
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "punchin-feedback-attachments"
+
+# Outbound transactional email, from feedback@trackmytime.today (same DKIM domain
+# as the punchin-email relay). Domain must be onboarded: wrangler email sending enable.
+[[send_email]]
+name = "EMAIL"
+
+# Non-secret config. Secrets (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY [PKCS#8],
+# GITHUB_WEBHOOK_SECRET, UNSUB_SECRET, TURNSTILE_SECRET) go via `wrangler secret put`.
+[vars]
+REPO_OWNER       = "PunchIn-App"
+REPO_NAME        = "punchin"
+TEMPLATE_REF     = "main"
+APP_URL          = "https://trackmytime.today"
+FROM_ADDRESS     = "feedback@trackmytime.today"
+TURNSTILE_SITEKEY = ""
+ACCENT           = "#2D5BF5"
+PROVENANCE_LABEL = "via-web-form"
+IMG_MAX_BYTES    = "5242880"
+IMG_MAX_COUNT    = "5"
