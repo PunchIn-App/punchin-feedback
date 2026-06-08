@@ -1,5 +1,9 @@
 # punchin-feedback
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2D5BF5?style=flat)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/PunchIn-App/punchin-feedback/ci.yml?branch=main&style=flat&label=CI&color=2D5BF5)](https://github.com/PunchIn-App/punchin-feedback/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-2D5BF5?style=flat)](docs/CHANGELOG.md)
+
 Account-free **bug report / feature request** intake for
 [PunchIn](https://github.com/PunchIn-App/punchin).
 
@@ -132,7 +136,7 @@ Secrets (never in `[vars]`): `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_
 
 ```bash
 npm install
-npm test                # vitest run (70 tests, mocked bindings)
+npm test                # vitest run (92 tests, mocked bindings)
 npm run check           # wrangler deploy --dry-run (bundles, no upload)
 npm run dev             # wrangler dev (local worker)
 npm run sync-templates  # regenerate src/bundledTemplates.js from templates/*.yml
@@ -141,6 +145,20 @@ npm run sync-templates  # regenerate src/bundledTemplates.js from templates/*.ym
 The design spec is in [`docs/2026-06-07-punchin-feedback-design.md`](docs/2026-06-07-punchin-feedback-design.md);
 the build plan in [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
+## Contributing
+
+Contributions are welcome. See [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)
+for the workflow, versioning, documentation, and testing requirements. There's no
+CLA — contributions are accepted under the project's Apache-2.0 license. This
+project follows a [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Please do not file public issues for vulnerabilities. Email
+[cve@trackmytime.today](mailto:cve@trackmytime.today) (or `cve+<number>@…` if a
+CVE is assigned) — see [SECURITY.md](SECURITY.md) for the full policy.
+
 ## License
 
-[Apache-2.0](LICENSE).
+[Apache License 2.0](LICENSE) — free to use, modify, host, and redistribute
+(including commercially) with attribution. Includes an explicit patent grant.

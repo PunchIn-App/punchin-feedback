@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/PunchIn-App/punchin-feedback/security/advisories/new
+    about: Please report vulnerabilities privately (see SECURITY.md) — do not open a public issue.
+  - name: Report a bug in the PunchIn app itself (account-free)
+    url: https://feedback.trackmytime.today/bug
+    about: This repo is the intake worker. Bugs in the PunchIn app go to the app's own issue tracker — this form files one for you.
