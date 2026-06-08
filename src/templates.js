@@ -3,6 +3,7 @@
 // target repo (cached in KV) with a bundled offline fallback. See design §5.
 import { load } from 'js-yaml';
 import { bundled } from './bundledTemplates.js';
+import { installationToken } from './github.js';
 
 const FILES = { bug: 'bug_report.yml', feature: 'feature_request.yml' };
 const CACHE_TTL = 21600; // 6h
@@ -38,20 +39,43 @@ export async function loadTemplate(env, kind) {
   const cached = await env.FEEDBACK.get(`tpl:${kind}`, 'json');
   if (cached) return cached;
 
-  // Try the live template; on any failure (e.g. a PRIVATE repo 404s an
-  // unauthenticated raw fetch) use the bundled copy. Either way, cache the
-  // result so we don't re-probe GitHub on every request — only once per TTL,
-  // which also lets it auto-upgrade to live if the repo ever becomes reachable.
-  const file = FILES[kind];
-  const url = `https://raw.githubusercontent.com/${env.REPO_OWNER}/${env.REPO_NAME}/${env.TEMPLATE_REF}/.github/ISSUE_TEMPLATE/${file}`;
+  // Fetch the live template via the authenticated GitHub Contents API (works for
+  // a PRIVATE repo; needs the App's `Contents: read` permission). On any failure
+  // — App not yet granted Contents:read, repo/file missing, unreachable — fall
+  // back to the bundled copy. Either way cache the result so we don't re-probe on
+  // every request, and so it auto-upgrades to live once the permission is granted.
   let schema;
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': 'punchin-feedback' } });
-    if (r.ok) schema = parseIssueForm(await r.text());
+    const text = await fetchLiveTemplate(env, FILES[kind]);
+    if (text) schema = parseIssueForm(text);
   } catch {
-    /* unreachable — fall back to bundled */
+    /* fall back to bundled */
   }
   if (!schema) schema = parseIssueForm(bundled[kind]);
   await env.FEEDBACK.put(`tpl:${kind}`, JSON.stringify(schema), { expirationTtl: CACHE_TTL });
   return schema;
+}
+
+// Raw file contents from the GitHub Contents API using the App installation token.
+// Returns the YAML text, or null if the API didn't return it.
+async function fetchLiveTemplate(env, file) {
+  const token = await installationToken(env);
+  const url = `https://api.github.com/repos/${env.REPO_OWNER}/${env.REPO_NAME}/contents/.github/ISSUE_TEMPLATE/${file}?ref=${env.TEMPLATE_REF}`;
+  const r = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.raw',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'punchin-feedback',
+    },
+  });
+  if (!r.ok) return null;
+  // With the `.raw` media type the body is the file itself; if the API instead
+  // returned JSON, decode the base64 `content` (UTF-8 safe).
+  if ((r.headers.get('content-type') || '').includes('json')) {
+    const json = await r.json();
+    if (!json.content) return null;
+    return new TextDecoder().decode(Uint8Array.from(atob(json.content.replace(/\s/g, '')), (c) => c.charCodeAt(0)));
+  }
+  return await r.text();
 }

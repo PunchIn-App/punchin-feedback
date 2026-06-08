@@ -111,3 +111,15 @@ export function makeEnv(overrides = {}) {
 }
 
 export const ctx = { waitUntil() {}, passThroughOnException() {} };
+
+// A throwaway RSA private key in PKCS#8 PEM, for tests that exercise the GitHub
+// App auth path (appJwt → installation token).
+export async function genPkcs8Pem() {
+  const pair = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify']
+  );
+  const b = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey))));
+  return `-----BEGIN PRIVATE KEY-----\n${b.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
+}

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { beforeAll } from 'vitest';
 import { parseIssueForm, loadTemplate } from '../src/templates.js';
 import { bundled } from '../src/bundledTemplates.js';
-import { makeEnv, routeFetch } from './helpers.js';
+import { makeEnv, routeFetch, genPkcs8Pem } from './helpers.js';
 
 const read = (p) => readFileSync(fileURLToPath(new URL(`../templates/${p}`, import.meta.url)), 'utf8');
 
@@ -42,27 +43,33 @@ describe('parseIssueForm', () => {
 });
 
 describe('loadTemplate', () => {
+  let pem;
+  beforeAll(async () => { pem = await genPkcs8Pem(); });
   afterEach(() => vi.unstubAllGlobals());
+
+  const tokenRoutes = {
+    'GET /installation': () => Response.json({ id: 1 }),
+    'POST /access_tokens': () => new Response(JSON.stringify({ token: 't', expires_at: new Date(Date.now() + 3600e3).toISOString() }), { status: 201 }),
+  };
 
   it('serves the KV cache without calling GitHub (cache-first)', async () => {
     const env = makeEnv();
     await env.FEEDBACK.put('tpl:bug', JSON.stringify({ labels: ['cached'], fields: [] }));
     vi.stubGlobal('fetch', () => { throw new Error('should not fetch when cached'); });
-    const s = await loadTemplate(env, 'bug');
-    expect(s.labels).toEqual(['cached']); // a fetch (then bundled) would give ['bug']
+    expect((await loadTemplate(env, 'bug')).labels).toEqual(['cached']); // a fetch (then bundled) would give ['bug']
   });
 
-  it('fetches live on a cache miss, parses, and caches', async () => {
-    const env = makeEnv();
-    vi.stubGlobal('fetch', routeFetch({ 'GET raw.githubusercontent.com': () => new Response(bundled.bug) }));
+  it('fetches the live template via the authenticated Contents API and caches it', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem, GITHUB_APP_ID: 'app1' });
+    vi.stubGlobal('fetch', routeFetch({ ...tokenRoutes, 'GET /contents/': () => new Response(bundled.bug) }));
     const s = await loadTemplate(env, 'bug');
     expect(s.labels).toEqual(['bug']);
     expect(await env.FEEDBACK.get('tpl:bug')).toBeTruthy();
   });
 
-  it('falls back to bundled when the cache is empty and fetch fails', async () => {
-    const env = makeEnv();
-    vi.stubGlobal('fetch', routeFetch({})); // any fetch throws
+  it('falls back to bundled when the live fetch fails (e.g. no Contents:read → 404)', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem, GITHUB_APP_ID: 'app1' });
+    vi.stubGlobal('fetch', routeFetch({ ...tokenRoutes, 'GET /contents/': () => new Response('Not Found', { status: 404 }) }));
     const s = await loadTemplate(env, 'feature');
     expect(s.labels).toEqual(['enhancement']);
   });

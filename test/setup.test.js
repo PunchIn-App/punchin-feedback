@@ -12,6 +12,7 @@ describe('GET /setup', () => {
     expect(html).toContain('github.com/organizations/PunchIn-App/settings/apps/new');
     expect(html).toContain('name="manifest"');
     expect(html).toContain('issues'); // default_permissions / default_events
+    expect(html).toContain('contents'); // Contents:read for live template fetch
     expect(html).toContain('/webhook'); // hook_attributes.url
   });
 });

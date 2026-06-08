@@ -21,7 +21,7 @@ export function handleSetup(request, env) {
     hook_attributes: { url: `${origin}/webhook` },
     redirect_url: `${origin}/setup/callback`,
     public: false,
-    default_permissions: { issues: 'write' },
+    default_permissions: { issues: 'write', contents: 'read' },
     default_events: ['issues'],
   };
   // Create the App under the target org so it can be installed on its repos.

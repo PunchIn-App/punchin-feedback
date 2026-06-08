@@ -47,9 +47,16 @@ deploy.
 ### 2. The GitHub App (one-click)
 
 Deploy once (`npm run deploy`), then visit **`https://feedback.trackmytime.today/setup`** and click
-**Create the GitHub App**. It creates an App with only `Issues: write` and an `Issues` webhook
+**Create the GitHub App**. It creates an App with `Issues: write` (file issues) + `Contents: read`
+(read the issue templates live — needed when the target repo is **private**) and an `Issues` webhook
 pointed at `/webhook`. Install it on `PunchIn-App/punchin`; the callback page then shows the exact
 secret commands.
+
+> If your App was created before `Contents: read` was added, edit the App → **Permissions & events
+> → Repository permissions → Contents → Read-only**, save, then approve the permission update on the
+> installation (**org → Settings → GitHub Apps → your App → Configure → review request**). Until
+> then the form renders from the bundled template copies (it never breaks — it just won't track live
+> template edits).
 
 > ⚠️ GitHub issues the App private key in **PKCS#1**, but Web Crypto needs **PKCS#8**. Convert once:
 > ```bash

@@ -25,7 +25,7 @@ keep both current as code changes.
 | Module | Responsibility |
 |---|---|
 | `index.js` | `export default { fetch, scheduled }` — route table + the submit/webhook/unsubscribe/image handlers and the cron sweep. Composes every other module. |
-| `templates.js` | `parseIssueForm(yaml)` → field schema; `loadTemplate(env, kind)` fetches the live `raw.githubusercontent` YAML (`main`), caches in KV, falls back to `bundledTemplates.js`. |
+| `templates.js` | `parseIssueForm(yaml)` → field schema; `loadTemplate(env, kind)` fetches the live template via the **authenticated GitHub Contents API** (App needs `Contents: read` — the target repo is private), caches in KV, falls back to `bundledTemplates.js` if the fetch fails. |
 | `bundledTemplates.js` | **Generated** by `scripts/sync-bundled.mjs` from `templates/*.yml` — the offline fallback. Don't hand-edit. |
 | `issueBody.js` | `formatIssueBody` / `buildIssue` — values → exact GitHub issue-form markdown (`### label`, `_No response_`, dropdown/checkbox rules; `markdown` blocks excluded). |
 | `github.js` | `appJwt` (RS256/PKCS#8), `installationToken` (KV-cached ~1h), `createIssue`, `verifyWebhook` (HMAC, raw body). |
