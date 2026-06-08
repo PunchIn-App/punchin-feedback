@@ -1,6 +1,6 @@
 # punchin-feedback — AI Assistant Guide
 
-**Version:** 0.1.0
+**Version:** 1.0.1
 
 A Cloudflare Worker providing an **account-free** bug-report / feature-request intake for the
 [PunchIn](https://github.com/PunchIn-App/punchin) app: it files real GitHub issues on a reporter's
