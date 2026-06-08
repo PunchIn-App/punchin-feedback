@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx wrangler deploy --dry-run
+
+  template-parity:
+    # The forms render from the live templates, but templates/*.yml is the bundled
+    # offline fallback. Fail if it drifts from punchin's default-branch templates.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare templates/ against punchin main
+        run: |
+          set -e
+          for f in bug_report feature_request; do
+            curl -fsSL "https://raw.githubusercontent.com/PunchIn-App/punchin/main/.github/ISSUE_TEMPLATE/$f.yml" -o "/tmp/$f.yml"
+            if ! diff -u "templates/$f.yml" "/tmp/$f.yml"; then
+              echo "::error::templates/$f.yml drifted from punchin main. Update it, then run 'npm run sync-templates' and commit."
+              exit 1
+            fi
+          done
