@@ -13,7 +13,7 @@ import { parseUploads, putImage, serveImage, scheduleExpiry, sweepExpired } from
 import { buildCopyEmail, buildClosedEmail, buildReopenEmail, sendEmail } from './email.js';
 import { signUnsub, verifyUnsub } from './unsubscribe.js';
 import { checkHoneypot, rateLimit, verifyTurnstile } from './spam.js';
-import { renderForm, renderSuccess, renderError, renderMessage } from './render.js';
+import { renderForm, renderSuccess, renderError, renderMessage, sanitizeTheme, sanitizeAccent } from './render.js';
 import { handleSetup, handleSetupCallback } from './setup.js';
 
 const YEAR_MS = 365 * 24 * 3600 * 1000;
@@ -23,9 +23,10 @@ const DAYS90_S = 90 * 24 * 3600;
 const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s || '');
 
 const html = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
-const htmlError = (env, msg, status) => html(renderError(msg, { accent: env.ACCENT }), status);
-const formError = (env, schema, kind, values, msg, status) =>
-  html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent: env.ACCENT, prefill: prefillFrom(values), error: msg }), status);
+// `ui` carries the user's theme/accent (from the app) through error/success pages.
+const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme }), status);
+const formError = (env, schema, kind, values, msg, status, ui = {}) =>
+  html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent: ui.accent || env.ACCENT, theme: ui.theme, prefill: prefillFrom(values), error: msg }), status);
 
 function prefillFrom(values) {
   return { ...values.fields, title: values.title, reporterEmail: values.reporterEmail, notify: values.notify, _hp: values._hp };
@@ -63,7 +64,9 @@ async function handleForm(request, env, kind) {
   const schema = await loadTemplate(env, kind);
   const prefill = {};
   for (const [k, v] of new URL(request.url).searchParams) prefill[k] = v;
-  return html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent: env.ACCENT, prefill }));
+  const theme = sanitizeTheme(prefill.theme);
+  const accent = sanitizeAccent(prefill.accent) || env.ACCENT;
+  return html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent, theme, prefill }));
 }
 
 // POST /submit
@@ -76,22 +79,25 @@ async function handleSubmit(request, env) {
   } catch {
     return htmlError(env, 'Invalid form submission.', 400);
   }
+  // Theme + accent the app passed (carried through hidden fields) so the
+  // error/success pages stay native too.
+  const ui = { theme: sanitizeTheme(fd.get('theme')), accent: sanitizeAccent(fd.get('accent')) };
   const kind = fd.get('kind');
-  if (kind !== 'bug' && kind !== 'feature') return htmlError(env, 'Unknown form.', 400);
+  if (kind !== 'bug' && kind !== 'feature') return htmlError(env, 'Unknown form.', 400, ui);
 
   const schema = await loadTemplate(env, kind);
   const values = extractValues(fd, schema);
 
-  if (!checkHoneypot(values)) return htmlError(env, 'Submission rejected.', 400);
+  if (!checkHoneypot(values)) return htmlError(env, 'Submission rejected.', 400, ui);
   if (!(await verifyTurnstile(env, fd.get('cf-turnstile-response') || '', ip)))
-    return formError(env, schema, kind, values, 'Please complete the verification challenge and try again.', 400);
-  if (!(await rateLimit(env, ip))) return formError(env, schema, kind, values, 'Too many submissions — please try again in a few minutes.', 429);
+    return formError(env, schema, kind, values, 'Please complete the verification challenge and try again.', 400, ui);
+  if (!(await rateLimit(env, ip))) return formError(env, schema, kind, values, 'Too many submissions — please try again in a few minutes.', 429, ui);
 
   const invalid = validate(schema, values);
-  if (invalid) return formError(env, schema, kind, values, invalid, 400);
+  if (invalid) return formError(env, schema, kind, values, invalid, 400, ui);
 
   const up = await parseUploads(fd, { max: Number(env.IMG_MAX_COUNT || 5), maxBytes: Number(env.IMG_MAX_BYTES || 5242880) });
-  if (!up.ok) return formError(env, schema, kind, values, up.error, 400);
+  if (!up.ok) return formError(env, schema, kind, values, up.error, 400, ui);
 
   // Hard path: store images + create the issue. A failure here is the only
   // user-facing error (the filing didn't happen).
@@ -110,7 +116,7 @@ async function handleSubmit(request, env) {
     bodyMd = built.body;
     issue = await createIssue(env, await installationToken(env), built);
   } catch {
-    return formError(env, schema, kind, values, 'Sorry — we could not file your report right now. Please try again.', 502);
+    return formError(env, schema, kind, values, 'Sorry — we could not file your report right now. Please try again.', 502, ui);
   }
 
   // Best-effort: persistence + copy email never fail the already-filed issue.
@@ -133,7 +139,7 @@ async function handleSubmit(request, env) {
     /* best-effort — the issue is already filed */
   }
 
-  return html(renderSuccess({ number: issue.number, html_url: issue.html_url, emailed, accent: env.ACCENT }));
+  return html(renderSuccess({ number: issue.number, html_url: issue.html_url, emailed, accent: ui.accent || env.ACCENT, theme: ui.theme }));
 }
 
 // POST /webhook (GitHub App: issues.closed / issues.reopened)

@@ -16,8 +16,21 @@
   --red:#FB6B6B;
   --radius:11px; --radius-lg:16px;
 }
+:root { color-scheme: dark; }
+
+/* Light tokens. The app can force a theme by passing ?theme=light|dark (an
+   explicit html.theme-* class); otherwise (no class) the form follows the
+   device via prefers-color-scheme. A forced .theme-dark stays dark even on a
+   light device, so the :not(.theme-dark) guards the auto rule. */
+:root.theme-light {
+  --bg:#F4F5F7; --bg2:#FFFFFF; --bg3:#EDEFF3;
+  --border:#E3E6EC;
+  --tx:#111827; --tx2:#374151; --tx3:#6B7280; --mut:#9AA1AE;
+  --red:#E5484D;
+  color-scheme: light;
+}
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not(.theme-dark):not(.theme-light) {
     --bg:#F4F5F7; --bg2:#FFFFFF; --bg3:#EDEFF3;
     --border:#E3E6EC;
     --tx:#111827; --tx2:#374151; --tx3:#6B7280; --mut:#9AA1AE;
@@ -25,7 +38,6 @@
     color-scheme: light;
   }
 }
-:root { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 body {

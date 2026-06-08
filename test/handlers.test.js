@@ -49,6 +49,14 @@ describe('GET /bug', () => {
     expect(t).toContain('Steps to reproduce');
     expect(t).toContain('name="title"');
   });
+
+  it('applies theme + accent passed from the app via query params', async () => {
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    const res = await worker.fetch(req('/bug?theme=light&accent=%23FF8FA3'), makeEnv(), ctx);
+    const t = await res.text();
+    expect(t).toContain('class="theme-light"');
+    expect(t).toContain('--accent:#FF8FA3');
+  });
 });
 
 describe('POST /submit', () => {

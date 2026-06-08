@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseIssueForm } from '../src/templates.js';
 import { bundled } from '../src/bundledTemplates.js';
-import { renderForm, renderSuccess, renderError } from '../src/render.js';
+import { renderForm, renderSuccess, renderError, sanitizeTheme, sanitizeAccent } from '../src/render.js';
 
 const bug = parseIssueForm(bundled.bug);
 
@@ -59,6 +59,38 @@ describe('renderForm', () => {
 
   it('shows an error banner when given one', () => {
     expect(renderForm(bug, { kind: 'bug', error: 'Please fix the form' })).toContain('Please fix the form');
+  });
+});
+
+describe('theme + accent (native feel from the app)', () => {
+  it('sanitizers accept only safe values', () => {
+    expect(sanitizeTheme('dark')).toBe('dark');
+    expect(sanitizeTheme('light')).toBe('light');
+    expect(sanitizeTheme('auto')).toBe('');
+    expect(sanitizeAccent('#FF8FA3')).toBe('#FF8FA3');
+    expect(sanitizeAccent('#abc')).toBe('#abc');
+    expect(sanitizeAccent('red')).toBe('');
+    expect(sanitizeAccent('#fff}</style><x>')).toBe(''); // CSS-injection attempt rejected
+  });
+
+  it('forces the theme class, injects the accent, and carries both as hidden fields', () => {
+    const html = renderForm(bug, { kind: 'bug', theme: 'light', accent: '#FF8FA3' });
+    expect(html).toContain('class="theme-light"');
+    expect(html).toContain('--accent:#FF8FA3');
+    expect(html).toContain('name="theme" value="light"');
+    expect(html).toContain('name="accent" value="#FF8FA3"');
+  });
+
+  it('auto theme / invalid accent → no theme class + the default accent', () => {
+    const html = renderForm(bug, { kind: 'bug', theme: 'auto', accent: 'not-a-color' });
+    expect(html).not.toContain('class="theme-');
+    expect(html).toContain('--accent:#2D5BF5');
+  });
+
+  it('the success page also carries theme + accent', () => {
+    const html = renderSuccess({ number: 7, html_url: 'x', emailed: false, theme: 'dark', accent: '#123456' });
+    expect(html).toContain('class="theme-dark"');
+    expect(html).toContain('--accent:#123456');
   });
 });
 

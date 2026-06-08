@@ -5,22 +5,31 @@
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// The app passes the user's theme + accent so the form feels native. Sanitize
+// strictly: theme is an explicit class (else auto = follow prefers-color-scheme),
+// and accent is injected into a <style> block so it MUST be a bare hex colour
+// (no `}`/`<`) or it's dropped — otherwise a query param could inject CSS.
+export const sanitizeTheme = (t) => (t === 'light' || t === 'dark' ? t : '');
+export const sanitizeAccent = (a) => (/^#[0-9a-fA-F]{3,8}$/.test(a || '') ? a : '');
+
 // Screenshots: Cloudflare's Turnstile api.js does NOT support Subresource
 // Integrity (it is a first-party, auto-updated script), so no integrity attr.
 function turnstileHead(sitekey) {
   return sitekey ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' : '';
 }
 
-function page({ title, accent, sitekey, body }) {
+function page({ title, accent, theme, sitekey, body }) {
+  const a = sanitizeAccent(accent) || '#2D5BF5';
+  const cls = sanitizeTheme(theme); // '' → auto (follows prefers-color-scheme)
   return `<!doctype html>
-<html lang="en" class="theme-dark">
+<html lang="en"${cls ? ` class="theme-${cls}"` : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>${esc(title)}</title>
 <link rel="stylesheet" href="/styles.css">
-<style>:root{--accent:${esc(accent || '#2D5BF5')}}</style>
+<style>:root{--accent:${a}}</style>
 ${turnstileHead(sitekey)}
 </head>
 <body>
@@ -104,7 +113,7 @@ const SNIFF = `<script>
 })();
 </script>`;
 
-export function renderForm(schema, { kind, turnstileSitekey = '', accent = '', prefill = {}, error = null } = {}) {
+export function renderForm(schema, { kind, turnstileSitekey = '', accent = '', theme = '', prefill = {}, error = null } = {}) {
   const notify = prefill.notify || { copy: true, closed: false, reopened: false };
   const errorBanner = error ? `<div class="error" role="alert">${esc(error)}</div>` : '';
   const fields = schema.fields.map((f) => blockFor(f, prefill)).join('\n');
@@ -117,6 +126,8 @@ export function renderForm(schema, { kind, turnstileSitekey = '', accent = '', p
 ${errorBanner}
 <form method="POST" action="/submit" enctype="multipart/form-data">
   <input type="hidden" name="kind" value="${esc(kind)}">
+  <input type="hidden" name="theme" value="${esc(sanitizeTheme(theme))}">
+  <input type="hidden" name="accent" value="${esc(sanitizeAccent(accent))}">
   <div class="hp" aria-hidden="true"><label>Leave this empty<input name="_hp" tabindex="-1" autocomplete="off" value="${esc(prefill._hp ?? '')}"></label></div>
 
   <div class="field">
@@ -149,33 +160,33 @@ ${errorBanner}
 </form>
 ${SNIFF}`;
 
-  return page({ title: schema.name, accent, sitekey: turnstileSitekey, body });
+  return page({ title: schema.name, accent, theme, sitekey: turnstileSitekey, body });
 }
 
-export function renderSuccess({ number, html_url, emailed, accent = '' }) {
+export function renderSuccess({ number, html_url, emailed, accent = '', theme = '' }) {
   const body = `
 <a class="back" href="/">← PunchIn</a>
 <h1 class="ds-h1">Thank you</h1>
 <p class="ds-body">Your feedback was filed as <a href="${esc(html_url)}">#${esc(number)}</a>.</p>
 ${emailed ? '<p class="ds-body">We\'ve emailed you a copy and the link.</p>' : ''}
 <a class="btn" href="/">Done</a>`;
-  return page({ title: 'Thank you', accent, sitekey: '', body });
+  return page({ title: 'Thank you', accent, theme, sitekey: '', body });
 }
 
-export function renderMessage(title, message, { accent = '' } = {}) {
+export function renderMessage(title, message, { accent = '', theme = '' } = {}) {
   const body = `
 <a class="back" href="/">← PunchIn</a>
 <h1 class="ds-h1">${esc(title)}</h1>
 <p class="ds-body">${esc(message)}</p>
 <a class="btn" href="/">Done</a>`;
-  return page({ title, accent, sitekey: '', body });
+  return page({ title, accent, theme, sitekey: '', body });
 }
 
-export function renderError(message, { accent = '' } = {}) {
+export function renderError(message, { accent = '', theme = '' } = {}) {
   const body = `
 <a class="back" href="/">← PunchIn</a>
 <h1 class="ds-h1">Something went wrong</h1>
 <div class="error" role="alert">${esc(message)}</div>
 <a class="btn" href="javascript:history.back()">Go back</a>`;
-  return page({ title: 'Error', accent, sitekey: '', body });
+  return page({ title: 'Error', accent, theme, sitekey: '', body });
 }
