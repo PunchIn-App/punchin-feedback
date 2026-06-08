@@ -2,6 +2,12 @@ name = "punchin-feedback"
 main = "src/index.js"
 compatibility_date = "2026-06-06"
 
+# Public hostname. custom_domain=true provisions the DNS + route at deploy (the
+# trackmytime.today zone is on this account).
+routes = [
+  { pattern = "feedback.trackmytime.today", custom_domain = true },
+]
+
 # Static brand assets (CSS + self-hosted Noto WOFF2). Asset-first routing with
 # not_found_handling="none" means only real files under ./assets/ are served
 # directly; every other path falls through to the Worker's fetch(). Do NOT add
@@ -17,10 +23,10 @@ not_found_handling = "none"
 crons = ["0 3 * * *"]
 
 # Reporter map, template cache, GH-token cache, webhook dedup, rate-limit,
-# image-expiry markers. Create with: wrangler kv namespace create FEEDBACK
+# image-expiry markers. (KV namespace "punchin-feedback", created 2026-06-08.)
 [[kv_namespaces]]
 binding = "FEEDBACK"
-id = "PLACEHOLDER_KV_ID"
+id = "2d03f031558b4b629aec3977aef91ed4"
 
 # Uploaded screenshots. Create with: wrangler r2 bucket create punchin-feedback-attachments
 [[r2_buckets]]
