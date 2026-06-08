@@ -19,19 +19,17 @@ jobs:
       - run: npm test
       - run: npx wrangler deploy --dry-run
 
-  template-parity:
-    # The forms render from the live templates, but templates/*.yml is the bundled
-    # offline fallback. Fail if it drifts from punchin's default-branch templates.
+  template-sync:
+    # The worker renders from templates/*.yml (bundled into src/bundledTemplates.js).
+    # Fail if the generated file wasn't regenerated after editing templates/.
+    # (punchin is private, so CI can't fetch its live templates unauthenticated;
+    # keeping templates/ in step with punchin's is a manual sync — see README.)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Compare templates/ against punchin main
-        run: |
-          set -e
-          for f in bug_report feature_request; do
-            curl -fsSL "https://raw.githubusercontent.com/PunchIn-App/punchin/main/.github/ISSUE_TEMPLATE/$f.yml" -o "/tmp/$f.yml"
-            if ! diff -u "templates/$f.yml" "/tmp/$f.yml"; then
-              echo "::error::templates/$f.yml drifted from punchin main. Update it, then run 'npm run sync-templates' and commit."
-              exit 1
-            fi
-          done
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/sync-bundled.mjs
+      - name: src/bundledTemplates.js is in sync with templates/*.yml
+        run: git diff --exit-code src/bundledTemplates.js || (echo "::error::Run 'npm run sync-templates' and commit src/bundledTemplates.js" && exit 1)

@@ -38,17 +38,20 @@ export async function loadTemplate(env, kind) {
   const cached = await env.FEEDBACK.get(`tpl:${kind}`, 'json');
   if (cached) return cached;
 
+  // Try the live template; on any failure (e.g. a PRIVATE repo 404s an
+  // unauthenticated raw fetch) use the bundled copy. Either way, cache the
+  // result so we don't re-probe GitHub on every request — only once per TTL,
+  // which also lets it auto-upgrade to live if the repo ever becomes reachable.
   const file = FILES[kind];
   const url = `https://raw.githubusercontent.com/${env.REPO_OWNER}/${env.REPO_NAME}/${env.TEMPLATE_REF}/.github/ISSUE_TEMPLATE/${file}`;
+  let schema;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': 'punchin-feedback' } });
-    if (r.ok) {
-      const schema = parseIssueForm(await r.text());
-      await env.FEEDBACK.put(`tpl:${kind}`, JSON.stringify(schema), { expirationTtl: CACHE_TTL });
-      return schema;
-    }
+    if (r.ok) schema = parseIssueForm(await r.text());
   } catch {
-    /* fall through to bundled */
+    /* unreachable — fall back to bundled */
   }
-  return parseIssueForm(bundled[kind]);
+  if (!schema) schema = parseIssueForm(bundled[kind]);
+  await env.FEEDBACK.put(`tpl:${kind}`, JSON.stringify(schema), { expirationTtl: CACHE_TTL });
+  return schema;
 }
