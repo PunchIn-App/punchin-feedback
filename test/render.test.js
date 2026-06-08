@@ -45,6 +45,13 @@ describe('renderForm', () => {
     expect(html).toContain("set('field-browser'"); // inline UA-sniff script
   });
 
+  it('scopes the notify-disable toggle to the checkboxes, not the email field', () => {
+    // Regression: a broad `.notify input` selector also disabled the email input
+    // (which lives inside .notify), freezing the whole section on load.
+    expect(html).toContain(".notify .check input");
+    expect(html).not.toMatch(/querySelectorAll\('\.notify input'\)/);
+  });
+
   it('omits Turnstile when no sitekey is configured', () => {
     const noTs = renderForm(bug, { kind: 'bug', turnstileSitekey: '' });
     expect(noTs).not.toContain('cf-turnstile');

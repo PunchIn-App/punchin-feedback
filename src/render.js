@@ -106,9 +106,10 @@ const SNIFF = `<script>
   set('field-device',device());
   var it=document.getElementById('field-install-type');
   if(it&&!it.value){it.value=matchMedia('(display-mode: standalone)').matches?'PWA (installed to home screen)':'Browser tab';}
-  // enable notification checkboxes only when an email is present
+  // enable notification CHECKBOXES only when an email is present — scope to the
+  // .check inputs so the email field itself (also inside .notify) stays editable.
   var email=document.getElementById('reporter-email');
-  function toggle(){var on=email&&email.value.trim().length>0;document.querySelectorAll('.notify input').forEach(function(c){c.disabled=!on;});}
+  function toggle(){var on=email&&email.value.trim().length>0;document.querySelectorAll('.notify .check input').forEach(function(c){c.disabled=!on;});}
   if(email){email.addEventListener('input',toggle);toggle();}
 })();
 </script>`;
