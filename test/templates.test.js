@@ -44,7 +44,15 @@ describe('parseIssueForm', () => {
 describe('loadTemplate', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('fetches live, parses, and caches', async () => {
+  it('serves the KV cache without calling GitHub (cache-first)', async () => {
+    const env = makeEnv();
+    await env.FEEDBACK.put('tpl:bug', JSON.stringify({ labels: ['cached'], fields: [] }));
+    vi.stubGlobal('fetch', () => { throw new Error('should not fetch when cached'); });
+    const s = await loadTemplate(env, 'bug');
+    expect(s.labels).toEqual(['cached']); // a fetch (then bundled) would give ['bug']
+  });
+
+  it('fetches live on a cache miss, parses, and caches', async () => {
     const env = makeEnv();
     vi.stubGlobal('fetch', routeFetch({ 'GET raw.githubusercontent.com': () => new Response(bundled.bug) }));
     const s = await loadTemplate(env, 'bug');
@@ -52,18 +60,10 @@ describe('loadTemplate', () => {
     expect(await env.FEEDBACK.get('tpl:bug')).toBeTruthy();
   });
 
-  it('falls back to bundled when fetch fails and cache is empty', async () => {
+  it('falls back to bundled when the cache is empty and fetch fails', async () => {
     const env = makeEnv();
     vi.stubGlobal('fetch', routeFetch({})); // any fetch throws
     const s = await loadTemplate(env, 'feature');
     expect(s.labels).toEqual(['enhancement']);
-  });
-
-  it('uses the KV cache when fetch fails', async () => {
-    const env = makeEnv();
-    await env.FEEDBACK.put('tpl:bug', JSON.stringify({ labels: ['cached'], fields: [] }));
-    vi.stubGlobal('fetch', routeFetch({}));
-    const s = await loadTemplate(env, 'bug');
-    expect(s.labels).toEqual(['cached']);
   });
 });

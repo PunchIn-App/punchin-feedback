@@ -73,6 +73,9 @@ Create a Turnstile widget for `feedback.trackmytime.today`; set `TURNSTILE_SITEK
 `wrangler.toml [vars]`) and `TURNSTILE_SECRET` (secret). Without it, the honeypot + per-IP
 rate-limit still apply.
 
+> ⚠️ Set **both or neither**. Sitekey only → an unverified widget; secret only → every real
+> submission fails verification and reporters are locked out.
+
 ### 5. Deploy
 
 ```bash

@@ -30,9 +30,14 @@ export function parseIssueForm(text) {
   return { name: doc.name ?? '', description: doc.description ?? '', labels, titlePrefix: doc.title ?? null, fields };
 }
 
-// I/O: fetch the live template (default branch), cache parsed schema in KV, and
-// fall back to the cache then the bundled copy if GitHub is unreachable.
+// I/O: serve the KV-cached schema (TTL gives the "refresh every few hours"
+// behaviour); on a cache miss fetch the live template, parse, and cache it; if
+// GitHub is unreachable fall back to the bundled copy. Cache-FIRST so a normal
+// request neither calls GitHub nor writes KV (avoids the 1-write/s/key limit).
 export async function loadTemplate(env, kind) {
+  const cached = await env.FEEDBACK.get(`tpl:${kind}`, 'json');
+  if (cached) return cached;
+
   const file = FILES[kind];
   const url = `https://raw.githubusercontent.com/${env.REPO_OWNER}/${env.REPO_NAME}/${env.TEMPLATE_REF}/.github/ISSUE_TEMPLATE/${file}`;
   try {
@@ -43,9 +48,7 @@ export async function loadTemplate(env, kind) {
       return schema;
     }
   } catch {
-    /* fall through to cache / bundled */
+    /* fall through to bundled */
   }
-  const cached = await env.FEEDBACK.get(`tpl:${kind}`, 'json');
-  if (cached) return cached;
   return parseIssueForm(bundled[kind]);
 }
