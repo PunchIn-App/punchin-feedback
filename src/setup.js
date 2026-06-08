@@ -22,7 +22,7 @@ export function handleSetup(request, env) {
     redirect_url: `${origin}/setup/callback`,
     public: false,
     default_permissions: { issues: 'write', contents: 'read' },
-    default_events: ['issues'],
+    default_events: ['issues', 'issue_comment'],
   };
   // Create the App under the target org so it can be installed on its repos.
   const action = `https://github.com/organizations/${encodeURIComponent(env.REPO_OWNER)}/settings/apps/new`;

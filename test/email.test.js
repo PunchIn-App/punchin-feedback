@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCopyEmail, buildClosedEmail, buildReopenEmail, sendEmail } from '../src/email.js';
+import { buildCopyEmail, buildClosedEmail, buildReopenEmail, buildCommentEmail, sendEmail } from '../src/email.js';
 import { makeEnv } from './helpers.js';
 
 const issue = { number: 7, html_url: 'https://github.com/PunchIn-App/punchin/issues/7' };
@@ -41,6 +41,18 @@ describe('close / reopen emails', () => {
   });
 });
 
+describe('buildCommentEmail', () => {
+  const m = buildCommentEmail({ issue, title: 'T', kind: 'bug', author: 'maintainer', commentBody: 'Which browser?', commentUrl: 'https://github.com/x/7#c1', unsubUrl, replyTo: 'comment+abc@trackmytime.today', appUrl });
+  it('includes author, comment, link, reply hint; unsubscribe at top; replyTo set', () => {
+    expect(m.subject).toContain('New comment on #7');
+    expect(m.text).toContain('maintainer commented');
+    expect(m.text).toContain('Which browser?');
+    expect(m.text).toContain('Reply to this email to respond');
+    expect(m.text.startsWith(`Unsubscribe: ${unsubUrl}`)).toBe(true);
+    expect(m.replyTo).toBe('comment+abc@trackmytime.today');
+  });
+});
+
 describe('sendEmail', () => {
   it('uses the binding shape (from.email) and forwards headers', async () => {
     const env = makeEnv();
@@ -49,5 +61,11 @@ describe('sendEmail', () => {
     expect(env.EMAIL.sent[0].from.email).toBe('feedback@trackmytime.today');
     expect(env.EMAIL.sent[0].to).toBe('r@example.com');
     expect(env.EMAIL.sent[0].headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+  });
+
+  it('forwards replyTo when present', async () => {
+    const env = makeEnv();
+    await sendEmail(env, 'r@example.com', buildCommentEmail({ issue, title: 'T', kind: 'bug', author: 'm', commentBody: 'hi', commentUrl: 'u', unsubUrl, replyTo: 'comment+x@trackmytime.today', appUrl }));
+    expect(env.EMAIL.sent[0].replyTo).toBe('comment+x@trackmytime.today');
   });
 });

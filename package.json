@@ -17,7 +17,8 @@
     "sync-templates": "node scripts/sync-bundled.mjs"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "postal-mime": "^2.7.4"
   },
   "devDependencies": {
     "vitest": "^4.1.8",

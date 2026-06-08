@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { appJwt, installationToken, createIssue, verifyWebhook } from '../src/github.js';
+import { appJwt, installationToken, createIssue, createComment, verifyWebhook } from '../src/github.js';
 import { makeEnv, routeFetch } from './helpers.js';
 
 // --- helpers: generate a throwaway RSA key + base64url decode -----------------
@@ -78,6 +78,24 @@ describe('createIssue', () => {
     const env = makeEnv();
     vi.stubGlobal('fetch', routeFetch({ 'POST /issues': () => new Response('nope', { status: 403 }) }));
     await expect(createIssue(env, 'tok', { title: 'T', body: 'B', labels: [] })).rejects.toThrow();
+  });
+});
+
+describe('createComment', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('posts a comment body and returns the comment', async () => {
+    const env = makeEnv();
+    let init;
+    vi.stubGlobal('fetch', routeFetch({ 'POST /comments': (r) => { init = r.init; return new Response(JSON.stringify({ id: 9, html_url: 'https://github.com/x#c9' }), { status: 201 }); } }));
+    const c = await createComment(env, 'tok', 7, 'hello there');
+    expect(c.id).toBe(9);
+    expect(JSON.parse(init.body)).toEqual({ body: 'hello there' });
+    expect(init.headers['User-Agent']).toBe('punchin-feedback');
+  });
+  it('throws on a non-201 response', async () => {
+    const env = makeEnv();
+    vi.stubGlobal('fetch', routeFetch({ 'POST /comments': () => new Response('no', { status: 403 }) }));
+    await expect(createComment(env, 'tok', 7, 'x')).rejects.toThrow();
   });
 });
 

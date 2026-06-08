@@ -114,7 +114,7 @@ const SNIFF = `<script>
 </script>`;
 
 export function renderForm(schema, { kind, turnstileSitekey = '', accent = '', theme = '', prefill = {}, error = null } = {}) {
-  const notify = prefill.notify || { copy: true, closed: false, reopened: false };
+  const notify = prefill.notify || { copy: true, closed: false, reopened: false, commented: false };
   const errorBanner = error ? `<div class="error" role="alert">${esc(error)}</div>` : '';
   const fields = schema.fields.map((f) => blockFor(f, prefill)).join('\n');
   const turnstile = turnstileSitekey ? `<div class="cf-turnstile" data-sitekey="${esc(turnstileSitekey)}"></div>` : '';
@@ -153,6 +153,7 @@ ${errorBanner}
     <label class="check"><input type="checkbox" name="notify-copy"${notify.copy ? ' checked' : ''}> Email me a copy + the issue link</label>
     <label class="check"><input type="checkbox" name="notify-closed"${notify.closed ? ' checked' : ''}> Email me when it's closed</label>
     <label class="check"><input type="checkbox" name="notify-reopened"${notify.reopened ? ' checked' : ''}> Email me if it's reopened</label>
+    <label class="check"><input type="checkbox" name="notify-commented"${notify.commented ? ' checked' : ''}> Email me when someone comments (you can reply by email)</label>
   </fieldset>
 
   ${turnstile}

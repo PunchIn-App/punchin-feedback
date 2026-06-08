@@ -19,11 +19,26 @@ GET  /bug         → Bug form        (rendered from bug_report.yml; env metadat
 GET  /feature     → Feature form    (rendered from feature_request.yml)
 POST /submit      → validate → spam-gate → upload images → create issue → email copy
 POST /webhook     → GitHub App issues.closed / issues.reopened → notify + manage retention
+POST /webhook     → also: issue_comment.created → email the reporter (if opted in)
 GET  /unsubscribe → stop a reporter's future emails (HMAC-signed token)
 GET  /a/<key>     → serve an uploaded screenshot from R2
 GET  /setup       → one-click GitHub App creation (manifest flow)
+email()           → inbound reply to comment+<id>@<domain> → posted as an issue comment
 scheduled (daily) → delete screenshots past their retention window
 ```
+
+## Two-way comments (optional)
+
+Reporters who tick "Email me when someone comments" get emailed on each new maintainer
+comment, and can **reply by email** — the reply is posted back as a comment (attributed to them,
+quoted history stripped). To enable:
+
+1. **App:** subscribe to the **Issue comment** event (App → Permissions & events → Subscribe to events).
+2. **Inbound replies (for the two-way part):** in Email Routing, route `comment@<your-domain>` (with
+   subaddressing) to this worker (**Send to a Worker → punchin-feedback**). It coexists with a
+   catch-all relay — specific rules win. Then set `ENABLE_EMAIL_REPLIES = "1"` in `wrangler.toml`.
+   Until that's set, comment *notifications* still work; only the reply-by-email part is gated off
+   (so a reply can't bounce off the relay's allowlist).
 
 A submitted issue is formatted to match GitHub's own issue-form rendering, so it's
 indistinguishable from one filed by a logged-in user. The reporter's email is never written to the

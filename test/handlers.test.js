@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import worker from '../src/index.js';
+import worker, { stripQuoted } from '../src/index.js';
 import { makeEnv, ctx, routeFetch } from './helpers.js';
 import { bundled } from '../src/bundledTemplates.js';
 import { signUnsub } from '../src/unsubscribe.js';
@@ -120,7 +120,7 @@ describe('POST /webhook', () => {
     const env = makeEnv();
     await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@example.com', kind: 'bug', createdAt: Date.now(), notify: { copy: true, closed: true, reopened: true }, images: ['k1.png'], imgYearClockStart: Date.now() }));
     const body = JSON.stringify({ action: 'closed', issue: { number: 101, html_url: 'https://x/101', title: 'T', state_reason: 'completed' } });
-    const res = await worker.fetch(req('/webhook', { method: 'POST', body, headers: { 'X-Hub-Signature-256': await sign(env.GITHUB_WEBHOOK_SECRET, body), 'X-GitHub-Delivery': 'd1' } }), env, ctx);
+    const res = await worker.fetch(req('/webhook', { method: 'POST', body, headers: { 'X-Hub-Signature-256': await sign(env.GITHUB_WEBHOOK_SECRET, body), 'X-GitHub-Delivery': 'd1', 'X-GitHub-Event': 'issues' } }), env, ctx);
     expect(res.status).toBe(200);
     expect(env.EMAIL.sent[0].subject).toContain('Closed');
     const map = await env.FEEDBACK.get('issue:101', 'json');
@@ -133,7 +133,7 @@ describe('POST /webhook', () => {
     const old = Date.now() - 1e9;
     await env.FEEDBACK.put('issue:7', JSON.stringify({ email: 'r@e.com', kind: 'bug', notify: { reopened: true }, images: ['k.png'], createdAt: old, imgYearClockStart: old, closedAt: old }));
     const body = JSON.stringify({ action: 'reopened', issue: { number: 7, html_url: 'x', title: 'T' } });
-    const res = await worker.fetch(req('/webhook', { method: 'POST', body, headers: { 'X-Hub-Signature-256': await sign(env.GITHUB_WEBHOOK_SECRET, body), 'X-GitHub-Delivery': 'r1' } }), env, ctx);
+    const res = await worker.fetch(req('/webhook', { method: 'POST', body, headers: { 'X-Hub-Signature-256': await sign(env.GITHUB_WEBHOOK_SECRET, body), 'X-GitHub-Delivery': 'r1', 'X-GitHub-Event': 'issues' } }), env, ctx);
     expect(res.status).toBe(200);
     expect(env.EMAIL.sent[0].subject).toContain('Reopened');
     const map = await env.FEEDBACK.get('issue:7', 'json');
@@ -156,6 +156,101 @@ describe('POST /webhook', () => {
     const res = await worker.fetch(req('/webhook', { method: 'POST', body, headers: { 'X-Hub-Signature-256': await sign(env.GITHUB_WEBHOOK_SECRET, body), 'X-GitHub-Delivery': 'dup' } }), env, ctx);
     expect(res.status).toBe(200);
     expect(env.EMAIL.sent).toHaveLength(0);
+  });
+});
+
+describe('POST /webhook issue_comment', () => {
+  const commentReq = async (env, body, delivery) =>
+    worker.fetch(req('/webhook', { method: 'POST', body, headers: { 'X-Hub-Signature-256': await sign(env.GITHUB_WEBHOOK_SECRET, body), 'X-GitHub-Delivery': delivery, 'X-GitHub-Event': 'issue_comment' } }), env, ctx);
+
+  it('emails the reporter on a human comment (opted-in); reply address when replies are enabled', async () => {
+    const env = makeEnv({ ENABLE_EMAIL_REPLIES: '1' });
+    await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@e.com', kind: 'bug', notify: { commented: true }, images: [], createdAt: Date.now(), imgYearClockStart: Date.now() }));
+    const body = JSON.stringify({ action: 'created', issue: { number: 101, html_url: 'x', title: 'T' }, comment: { body: 'Which browser?', html_url: 'x#c', user: { login: 'maint', type: 'User' } } });
+    const res = await commentReq(env, body, 'c1');
+    expect(res.status).toBe(200);
+    expect(env.EMAIL.sent[0].subject).toContain('New comment');
+    expect(env.EMAIL.sent[0].text).toContain('Which browser?');
+    expect(env.EMAIL.sent[0].replyTo).toMatch(/^comment\+[0-9a-f]+@trackmytime\.today$/);
+    expect((await env.FEEDBACK.list({ prefix: 'reply:' })).keys.length).toBe(1);
+  });
+
+  it('omits the reply address when replies are not enabled (no bounce risk)', async () => {
+    const env = makeEnv(); // ENABLE_EMAIL_REPLIES off
+    await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@e.com', kind: 'bug', notify: { commented: true } }));
+    const body = JSON.stringify({ action: 'created', issue: { number: 101, html_url: 'x', title: 'T' }, comment: { body: 'hi', html_url: 'x', user: { login: 'm', type: 'User' } } });
+    await commentReq(env, body, 'c1b');
+    expect(env.EMAIL.sent[0].subject).toContain('New comment');
+    expect(env.EMAIL.sent[0].replyTo).toBeUndefined();
+    expect((await env.FEEDBACK.list({ prefix: 'reply:' })).keys.length).toBe(0);
+  });
+
+  it('skips bot/app comments (no notification loop)', async () => {
+    const env = makeEnv();
+    await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@e.com', kind: 'bug', notify: { commented: true } }));
+    const body = JSON.stringify({ action: 'created', issue: { number: 101, html_url: 'x', title: 'T' }, comment: { body: 'reposted', html_url: 'x', user: { login: 'app', type: 'Bot' } } });
+    await commentReq(env, body, 'c2');
+    expect(env.EMAIL.sent).toHaveLength(0);
+  });
+
+  it('does not email when the reporter did not opt into comments', async () => {
+    const env = makeEnv();
+    await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@e.com', kind: 'bug', notify: { commented: false } }));
+    const body = JSON.stringify({ action: 'created', issue: { number: 101, html_url: 'x', title: 'T' }, comment: { body: 'hi', html_url: 'x', user: { login: 'm', type: 'User' } } });
+    await commentReq(env, body, 'c3');
+    expect(env.EMAIL.sent).toHaveLength(0);
+  });
+});
+
+describe('stripQuoted', () => {
+  it('keeps the new text and drops quoted history / signature', () => {
+    expect(stripQuoted('My reply.\n\nOn Mon, X wrote:\n> old')).toBe('My reply.');
+    expect(stripQuoted('Hi there\n> quoted')).toBe('Hi there');
+    expect(stripQuoted('Thanks\n--\nSent from my phone')).toBe('Thanks');
+    expect(stripQuoted('Answer\n______________\nFrom: someone')).toBe('Answer');
+  });
+});
+
+describe('email() — inbound reply → comment', () => {
+  const msg = ({ from, to, raw }) => ({ from, to, raw: new Response(raw).body, headers: new Headers() });
+  const drain = async (m, env) => { let p; await worker.email(m, env, { waitUntil: (x) => { p = x; } }); await p; };
+  // Token-flow only (no 'POST /issues' — the comments URL contains '/issues' and
+  // would match it first under routeFetch's substring matching).
+  const tokenRoutes = {
+    'GET /installation': () => Response.json({ id: 1 }),
+    'POST /access_tokens': () => new Response(JSON.stringify({ token: 't', expires_at: new Date(Date.now() + 3600e3).toISOString() }), { status: 201 }),
+  };
+
+  it('posts the reporter reply as a comment, stripping quoted text', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    await env.FEEDBACK.put('reply:abc', '101');
+    await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@e.com', kind: 'bug' }));
+    const mime = ['From: r@e.com', 'To: comment+abc@trackmytime.today', 'Content-Type: text/plain; charset=utf-8', '', 'It was Chrome 124 on macOS.', '', 'On Mon, maintainer wrote:', '> Which browser?', ''].join('\r\n');
+    let commentBody;
+    vi.stubGlobal('fetch', routeFetch({ ...tokenRoutes, 'POST /comments': (r) => { commentBody = JSON.parse(r.init.body).body; return new Response(JSON.stringify({ id: 1 }), { status: 201 }); } }));
+    await drain(msg({ from: 'r@e.com', to: 'comment+abc@trackmytime.today', raw: mime }), env);
+    expect(commentBody).toContain('It was Chrome 124');
+    expect(commentBody).toContain('Reply from the reporter');
+    expect(commentBody).not.toContain('Which browser?');
+  });
+
+  it('ignores an unknown reply address', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    let posted = false;
+    vi.stubGlobal('fetch', routeFetch({ ...tokenRoutes, 'POST /comments': () => { posted = true; return new Response('{}', { status: 201 }); } }));
+    await drain(msg({ from: 'r@e.com', to: 'comment+nope@trackmytime.today', raw: 'From: r@e.com\r\n\r\nhi' }), env);
+    expect(posted).toBe(false);
+  });
+
+  it('ignores a reply from someone other than the reporter', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    await env.FEEDBACK.put('reply:abc', '101');
+    await env.FEEDBACK.put('issue:101', JSON.stringify({ email: 'r@e.com', kind: 'bug' }));
+    let posted = false;
+    vi.stubGlobal('fetch', routeFetch({ ...tokenRoutes, 'POST /comments': () => { posted = true; return new Response('{}', { status: 201 }); } }));
+    const mime = 'From: attacker@evil.com\r\nTo: comment+abc@trackmytime.today\r\nContent-Type: text/plain\r\n\r\nmalicious';
+    await drain(msg({ from: 'attacker@evil.com', to: 'comment+abc@trackmytime.today', raw: mime }), env);
+    expect(posted).toBe(false);
   });
 });
 

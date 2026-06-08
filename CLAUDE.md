@@ -24,7 +24,7 @@ keep both current as code changes.
 
 | Module | Responsibility |
 |---|---|
-| `index.js` | `export default { fetch, scheduled }` — route table + the submit/webhook/unsubscribe/image handlers and the cron sweep. Composes every other module. |
+| `index.js` | `export default { fetch, scheduled, email }` — route table + the submit/webhook/unsubscribe/image handlers, the cron sweep, and the **inbound email handler** (a reporter's reply to `comment+<id>@` → posted as an issue comment via `stripQuoted` + `createComment`). The webhook also handles `issue_comment.created` → notifies the reporter. Composes every other module. |
 | `templates.js` | `parseIssueForm(yaml)` → field schema; `loadTemplate(env, kind)` fetches the live template via the **authenticated GitHub Contents API** (App needs `Contents: read` — the target repo is private), caches in KV, falls back to `bundledTemplates.js` if the fetch fails. |
 | `bundledTemplates.js` | **Generated** by `scripts/sync-bundled.mjs` from `templates/*.yml` — the offline fallback. Don't hand-edit. |
 | `issueBody.js` | `formatIssueBody` / `buildIssue` — values → exact GitHub issue-form markdown (`### label`, `_No response_`, dropdown/checkbox rules; `markdown` blocks excluded). |

@@ -6,11 +6,12 @@
 // (asset-first, not_found_handling="none"), so they never reach fetch(); every
 // dynamic route below falls through here.
 
+import PostalMime from 'postal-mime';
 import { loadTemplate } from './templates.js';
 import { buildIssue } from './issueBody.js';
-import { installationToken, createIssue, verifyWebhook } from './github.js';
+import { installationToken, createIssue, createComment, verifyWebhook } from './github.js';
 import { parseUploads, putImage, serveImage, scheduleExpiry, sweepExpired } from './attachments.js';
-import { buildCopyEmail, buildClosedEmail, buildReopenEmail, sendEmail } from './email.js';
+import { buildCopyEmail, buildClosedEmail, buildReopenEmail, buildCommentEmail, sendEmail } from './email.js';
 import { signUnsub, verifyUnsub } from './unsubscribe.js';
 import { checkHoneypot, rateLimit, verifyTurnstile } from './spam.js';
 import { renderForm, renderSuccess, renderError, renderMessage, sanitizeTheme, sanitizeAccent } from './render.js';
@@ -21,6 +22,8 @@ const DAY30_MS = 30 * 24 * 3600 * 1000;
 const YEAR_S = 365 * 24 * 3600;
 const DAYS90_S = 90 * 24 * 3600;
 const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s || '');
+const randomId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('');
+const replyDomain = (env) => (env.FROM_ADDRESS || '@trackmytime.today').split('@')[1];
 
 const html = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
 // `ui` carries the user's theme/accent (from the app) through error/success pages.
@@ -43,7 +46,12 @@ function extractValues(fd, schema) {
     title: fd.get('title') ?? '',
     fields,
     reporterEmail: (fd.get('reporter-email') ?? '').trim(),
-    notify: { copy: fd.get('notify-copy') != null, closed: fd.get('notify-closed') != null, reopened: fd.get('notify-reopened') != null },
+    notify: {
+      copy: fd.get('notify-copy') != null,
+      closed: fd.get('notify-closed') != null,
+      reopened: fd.get('notify-reopened') != null,
+      commented: fd.get('notify-commented') != null,
+    },
     _hp: fd.get('_hp') ?? '',
   };
 }
@@ -142,7 +150,7 @@ async function handleSubmit(request, env) {
   return html(renderSuccess({ number: issue.number, html_url: issue.html_url, emailed, accent: ui.accent || env.ACCENT, theme: ui.theme }));
 }
 
-// POST /webhook (GitHub App: issues.closed / issues.reopened)
+// POST /webhook (GitHub App: issues closed/reopened, and issue comments)
 async function handleWebhook(request, env) {
   const raw = await request.text();
   if (!(await verifyWebhook(env.GITHUB_WEBHOOK_SECRET, raw, request.headers.get('X-Hub-Signature-256'))))
@@ -160,19 +168,57 @@ async function handleWebhook(request, env) {
   } catch {
     return new Response('bad json', { status: 400 });
   }
-  const action = event.action;
+  const eventType = request.headers.get('X-GitHub-Event') || '';
   const num = event.issue?.number;
-  if ((action !== 'closed' && action !== 'reopened') || !num) return new Response('ok', { status: 200 });
-
-  const map = await env.FEEDBACK.get(`issue:${num}`, 'json');
-  if (!map) return new Response('ok', { status: 200 });
+  const ok = new Response('ok', { status: 200 });
+  if (!num) return ok;
 
   const origin = new URL(request.url).origin;
   const issue = { number: num, html_url: event.issue.html_url };
   const title = event.issue.title;
+  const unsubFor = async (n) => `${origin}/unsubscribe?token=${await signUnsub(env.UNSUB_SECRET, n)}`;
+
+  // --- New comment on the issue → notify the reporter (with a reply address) ---
+  if (eventType === 'issue_comment') {
+    // Only human comments — skips our App's own comments (incl. reporter replies
+    // we repost), so there's no notification loop.
+    if (event.action !== 'created' || event.comment?.user?.type !== 'User') return ok;
+    const map = await env.FEEDBACK.get(`issue:${num}`, 'json');
+    if (!map?.email || !map.notify?.commented) return ok;
+    // Only advertise a reply address once inbound email is wired (ENABLE_EMAIL_REPLIES),
+    // else a reply would hit the relay's allowlist and bounce.
+    let replyTo;
+    if (env.ENABLE_EMAIL_REPLIES === '1') {
+      const replyId = randomId();
+      await env.FEEDBACK.put(`reply:${replyId}`, String(num), { expirationTtl: DAYS90_S });
+      replyTo = `comment+${replyId}@${replyDomain(env)}`;
+    }
+    try {
+      await sendEmail(env, map.email, buildCommentEmail({
+        issue, title, kind: map.kind,
+        author: event.comment.user.login,
+        commentBody: event.comment.body || '',
+        commentUrl: event.comment.html_url,
+        unsubUrl: await unsubFor(num),
+        replyTo,
+        appUrl: env.APP_URL,
+      }));
+    } catch {
+      /* best-effort */
+    }
+    return ok;
+  }
+
+  if (eventType !== 'issues') return ok;
+  const action = event.action;
+  if (action !== 'closed' && action !== 'reopened') return ok;
+
+  const map = await env.FEEDBACK.get(`issue:${num}`, 'json');
+  if (!map) return ok;
+
   const now = Date.now();
   const yearStart = map.imgYearClockStart || map.createdAt || now;
-  const unsubUrl = async () => `${origin}/unsubscribe?token=${await signUnsub(env.UNSUB_SECRET, num)}`;
+  const unsubUrl = async () => unsubFor(num);
 
   if (action === 'closed') {
     if (map.email && map.notify?.closed) {
@@ -210,6 +256,46 @@ async function handleUnsubscribe(request, env) {
   return html(renderMessage('Unsubscribed', "You won't receive any more emails about this report.", { accent: env.ACCENT }));
 }
 
+// Inbound reply to comment+<id>@<domain> → post it as an issue comment.
+async function handleInboundReply(message, env) {
+  try {
+    const m = (message.to || '').match(/^comment\+([^@]+)@/i);
+    if (!m) return;
+    const numStr = await env.FEEDBACK.get(`reply:${m[1]}`);
+    if (!numStr) return; // unknown / expired reply address
+    const num = Number(numStr);
+    const map = await env.FEEDBACK.get(`issue:${num}`, 'json');
+    if (!map?.email) return;
+    const parsed = await PostalMime.parse(await new Response(message.raw).arrayBuffer());
+    // The unguessable reply id is the real gate; also require the sender to match
+    // the reporter's address (defence in depth).
+    const from = (parsed.from?.address || message.from || '').toLowerCase();
+    if (from !== map.email.toLowerCase()) return;
+    const text = stripQuoted(parsed.text || '');
+    if (!text) return;
+    const token = await installationToken(env);
+    await createComment(env, token, num, `💬 **Reply from the reporter** (via email):\n\n${text}`);
+  } catch {
+    /* never bounce — swallow */
+  }
+}
+
+// Keep the new text, drop quoted history / signature (handles top-posting).
+export function stripQuoted(text) {
+  const out = [];
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const t = line.trim();
+    if (/^>/.test(line)) break; // quoted line
+    if (/^On\b.*\bwrote:$/.test(t)) break; // "On <date>, <x> wrote:"
+    if (/^-{2,}\s*Original Message\s*-{2,}/i.test(t)) break;
+    if (/^_{5,}$/.test(t)) break; // Outlook divider
+    if (/^From:\s/.test(line)) break;
+    if (t === '--') break; // signature delimiter
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
 export default {
   async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
@@ -231,5 +317,12 @@ export default {
 
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(sweepExpired(env));
+  },
+
+  // Inbound email (Cloudflare Email Worker): a reporter's reply to a comment
+  // notification → posted back as an issue comment. Routed here by an Email
+  // Routing rule for comment@<domain> (with subaddressing).
+  async email(message, env, ctx) {
+    ctx.waitUntil(handleInboundReply(message, env));
   },
 };

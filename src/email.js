@@ -49,10 +49,29 @@ export function buildReopenEmail({ issue, title, kind, unsubUrl, appUrl }) {
   return { subject: `Reopened: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText: lead, contentHtml: `<p>${escapeHtml(lead)}</p>`, appUrl }), headers: headersFor(unsubUrl) };
 }
 
+export function buildCommentEmail({ issue, title, kind, author, commentBody, commentUrl, unsubUrl, replyTo, appUrl }) {
+  const label = KIND_LABEL[kind] || 'submission';
+  const lead = `${author} commented on your ${label} #${issue.number} ("${title}"):`;
+  const replyLine = replyTo ? 'Reply to this email to respond on the issue.' : '';
+  const contentText = `${lead}\n\n${commentBody}\n\nView: ${commentUrl}${replyLine ? `\n\n${replyLine}` : ''}`;
+  const contentHtml =
+    `<p>${escapeHtml(lead)}</p>` +
+    `<blockquote style="border-left:3px solid #888;padding-left:10px;color:#444;white-space:pre-wrap">${escapeHtml(commentBody)}</blockquote>` +
+    `<p><a href="${escapeHtml(commentUrl)}">View on the issue</a></p>` +
+    (replyLine ? `<p>${escapeHtml(replyLine)}</p>` : '');
+  return {
+    subject: `New comment on #${issue.number} — ${title}`,
+    ...compose({ unsubUrl, contentText, contentHtml, appUrl }),
+    headers: headersFor(unsubUrl),
+    replyTo,
+  };
+}
+
 export async function sendEmail(env, to, msg) {
   return env.EMAIL.send({
     to,
     from: { email: env.FROM_ADDRESS, name: 'PunchIn Feedback' },
+    ...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
     subject: msg.subject,
     html: msg.html,
     text: msg.text,

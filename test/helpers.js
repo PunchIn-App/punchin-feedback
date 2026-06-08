@@ -102,6 +102,7 @@ export function makeEnv(overrides = {}) {
     PROVENANCE_LABEL: 'via-web-form',
     IMG_MAX_BYTES: '5242880',
     IMG_MAX_COUNT: '5',
+    ENABLE_EMAIL_REPLIES: '',
     GITHUB_APP_ID: '123',
     GITHUB_WEBHOOK_SECRET: 'whsec',
     UNSUB_SECRET: 'unsec',

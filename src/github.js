@@ -90,3 +90,13 @@ export async function createIssue(env, token, { title, body, labels }) {
   if (r.status !== 201) throw new Error(`create issue ${r.status}: ${await r.text()}`);
   return await r.json(); // { number, html_url, ... }
 }
+
+export async function createComment(env, token, issueNumber, body) {
+  const r = await fetch(`${GH}/repos/${env.REPO_OWNER}/${env.REPO_NAME}/issues/${issueNumber}/comments`, {
+    method: 'POST',
+    headers: ghHeaders(token, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ body }),
+  });
+  if (r.status !== 201) throw new Error(`create comment ${r.status}: ${await r.text()}`);
+  return await r.json(); // { id, html_url, ... }
+}

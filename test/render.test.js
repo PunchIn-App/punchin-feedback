@@ -29,6 +29,7 @@ describe('renderForm', () => {
     expect(html).toMatch(/name="notify-copy"\s+checked/);
     expect(html).toContain('name="notify-closed"');
     expect(html).toContain('name="notify-reopened"');
+    expect(html).toContain('name="notify-commented"');
   });
 
   it('includes the screenshot upload + the Cloudflare R2 + email disclosures', () => {

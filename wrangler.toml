@@ -51,3 +51,6 @@ ACCENT           = "#2D5BF5"
 PROVENANCE_LABEL = "via-web-form"
 IMG_MAX_BYTES    = "5242880"
 IMG_MAX_COUNT    = "5"
+# Two-way comment replies: set to "1" only AFTER routing comment@<domain> to this
+# worker in Email Routing — otherwise the reply address bounces off the relay.
+ENABLE_EMAIL_REPLIES = ""

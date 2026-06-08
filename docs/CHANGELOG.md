@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Two-way issue comments.** A reporter can opt into "Email me when someone comments"; each new
+  maintainer comment is emailed to them, and they can **reply by email** — the reply is posted back
+  as an issue comment (attributed to them, quoted history stripped). Inbound replies are gated by
+  `ENABLE_EMAIL_REPLIES` + an Email Routing rule; comment notifications work without it. Sender is
+  verified against the reporter's address; the worker's own comments are skipped (no loop).
 - Initial `punchin-feedback` Cloudflare Worker: account-free bug-report / feature-request intake.
   - Two forms (`/bug`, `/feature`) derived from the live GitHub issue-form templates (with a KV
     cache and a bundled offline fallback), rendering near-identically to the GitHub forms.
