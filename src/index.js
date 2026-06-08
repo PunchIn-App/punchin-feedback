@@ -25,6 +25,16 @@ const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s || '');
 const randomId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('');
 const replyDomain = (env) => (env.FROM_ADDRESS || '@trackmytime.today').split('@')[1];
 
+// A per-issue reply address (comment+<id>@<domain>) so the reporter can reply to
+// any of their emails to add a comment. Off (undefined) unless ENABLE_EMAIL_REPLIES
+// is set — until inbound routing is wired, else a reply would bounce off the relay.
+async function replyAddress(env, n) {
+  if (env.ENABLE_EMAIL_REPLIES !== '1') return undefined;
+  const replyId = randomId();
+  await env.FEEDBACK.put(`reply:${replyId}`, String(n), { expirationTtl: YEAR_S });
+  return `comment+${replyId}@${replyDomain(env)}`;
+}
+
 const html = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
 // `ui` carries the user's theme/accent (from the app) through error/success pages.
 const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme }), status);
@@ -140,7 +150,7 @@ async function handleSubmit(request, env) {
     if (keys.length) await scheduleExpiry(env, keys, now + YEAR_MS);
     if (hasEmail && values.notify.copy) {
       const unsubUrl = `${origin}/unsubscribe?token=${await signUnsub(env.UNSUB_SECRET, issue.number)}`;
-      await sendEmail(env, values.reporterEmail, buildCopyEmail({ issue, title: values.title, kind, bodyMarkdown: bodyMd, unsubUrl, appUrl: env.APP_URL }));
+      await sendEmail(env, values.reporterEmail, buildCopyEmail({ issue, title: values.title, kind, bodyMarkdown: bodyMd, unsubUrl, replyTo: await replyAddress(env, issue.number), appUrl: env.APP_URL }));
       emailed = true;
     }
   } catch {
@@ -185,14 +195,7 @@ async function handleWebhook(request, env) {
     if (event.action !== 'created' || event.comment?.user?.type !== 'User') return ok;
     const map = await env.FEEDBACK.get(`issue:${num}`, 'json');
     if (!map?.email || !map.notify?.commented) return ok;
-    // Only advertise a reply address once inbound email is wired (ENABLE_EMAIL_REPLIES),
-    // else a reply would hit the relay's allowlist and bounce.
-    let replyTo;
-    if (env.ENABLE_EMAIL_REPLIES === '1') {
-      const replyId = randomId();
-      await env.FEEDBACK.put(`reply:${replyId}`, String(num), { expirationTtl: DAYS90_S });
-      replyTo = `comment+${replyId}@${replyDomain(env)}`;
-    }
+    const replyTo = await replyAddress(env, num);
     try {
       await sendEmail(env, map.email, buildCommentEmail({
         issue, title, kind: map.kind,
@@ -223,7 +226,7 @@ async function handleWebhook(request, env) {
   if (action === 'closed') {
     if (map.email && map.notify?.closed) {
       try {
-        await sendEmail(env, map.email, buildClosedEmail({ issue, title, kind: map.kind, stateReason: event.issue.state_reason, unsubUrl: await unsubUrl(), appUrl: env.APP_URL }));
+        await sendEmail(env, map.email, buildClosedEmail({ issue, title, kind: map.kind, stateReason: event.issue.state_reason, unsubUrl: await unsubUrl(), replyTo: await replyAddress(env, num), appUrl: env.APP_URL }));
       } catch {}
     }
     map.closedAt = now;
@@ -232,7 +235,7 @@ async function handleWebhook(request, env) {
   } else {
     if (map.email && map.notify?.reopened) {
       try {
-        await sendEmail(env, map.email, buildReopenEmail({ issue, title, kind: map.kind, unsubUrl: await unsubUrl(), appUrl: env.APP_URL }));
+        await sendEmail(env, map.email, buildReopenEmail({ issue, title, kind: map.kind, unsubUrl: await unsubUrl(), replyTo: await replyAddress(env, num), appUrl: env.APP_URL }));
       } catch {}
     }
     map.imgYearClockStart = now; // reopening resets the 1-year clock

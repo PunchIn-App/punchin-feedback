@@ -78,6 +78,15 @@ describe('POST /submit', () => {
     expect(env.EMAIL.sent[0].to).toBe('r@example.com');
   });
 
+  it('the copy email carries a reply address when ENABLE_EMAIL_REPLIES is on', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem, ENABLE_EMAIL_REPLIES: '1' });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ 'reporter-email': 'r@example.com', 'notify-copy': 'on' }) }), env, ctx);
+    expect(env.EMAIL.sent[0].replyTo).toMatch(/^comment\+[0-9a-f]+@trackmytime\.today$/);
+    expect(env.EMAIL.sent[0].text).toContain('Reply to this email to add a comment');
+    expect((await env.FEEDBACK.list({ prefix: 'reply:' })).keys.length).toBe(1);
+  });
+
   it('a failing email never fails the already-filed issue (best-effort)', async () => {
     const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
     env.EMAIL.send = async () => { throw new Error('smtp down'); };

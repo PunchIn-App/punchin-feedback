@@ -47,7 +47,7 @@ describe('buildCommentEmail', () => {
     expect(m.subject).toContain('New comment on #7');
     expect(m.text).toContain('maintainer commented');
     expect(m.text).toContain('Which browser?');
-    expect(m.text).toContain('Reply to this email to respond');
+    expect(m.text).toContain('Reply to this email to add a comment');
     expect(m.text.startsWith(`Unsubscribe: ${unsubUrl}`)).toBe(true);
     expect(m.replyTo).toBe('comment+abc@trackmytime.today');
   });

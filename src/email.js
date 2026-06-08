@@ -26,33 +26,39 @@ function compose({ unsubUrl, contentText, contentHtml, appUrl }) {
   return { text, html };
 }
 
-export function buildCopyEmail({ issue, title, kind, bodyMarkdown, unsubUrl, appUrl }) {
+// Every reporter email is reply-to-comment when a per-issue replyTo is given:
+// the reporter can reply to ANY of them to add a comment on the issue.
+const REPLY_HINT = 'Reply to this email to add a comment on the issue.';
+const replyText = (replyTo) => (replyTo ? `\n\n${REPLY_HINT}` : '');
+const replyHtml = (replyTo) => (replyTo ? `<p>${REPLY_HINT}</p>` : '');
+
+export function buildCopyEmail({ issue, title, kind, bodyMarkdown, unsubUrl, replyTo, appUrl }) {
   const label = KIND_LABEL[kind] || 'submission';
   const lead = `Thanks! Your ${label} was filed as #${issue.number}: "${title}". Track it here: ${issue.html_url}`;
-  const contentText = `${lead}\n\nHere's a copy of what you submitted:\n\n${bodyMarkdown}`;
+  const contentText = `${lead}\n\nHere's a copy of what you submitted:\n\n${bodyMarkdown}${replyText(replyTo)}`;
   const contentHtml =
     `<p>${escapeHtml(lead)}</p><p><strong>Your submission:</strong></p>` +
-    `<pre style="white-space:pre-wrap">${escapeHtml(bodyMarkdown)}</pre>`;
-  return { subject: `Your ${label} was filed: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText, contentHtml, appUrl }), headers: headersFor(unsubUrl) };
+    `<pre style="white-space:pre-wrap">${escapeHtml(bodyMarkdown)}</pre>${replyHtml(replyTo)}`;
+  return { subject: `Your ${label} was filed: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText, contentHtml, appUrl }), headers: headersFor(unsubUrl), replyTo };
 }
 
-export function buildClosedEmail({ issue, title, kind, stateReason, unsubUrl, appUrl }) {
+export function buildClosedEmail({ issue, title, kind, stateReason, unsubUrl, replyTo, appUrl }) {
   const label = KIND_LABEL[kind] || 'submission';
   const reason = stateReason === 'not_planned' ? ' as not planned' : stateReason === 'completed' ? ' as completed' : '';
   const lead = `Your ${label} #${issue.number} ("${title}") was closed${reason}. ${issue.html_url}`;
-  return { subject: `Closed: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText: lead, contentHtml: `<p>${escapeHtml(lead)}</p>`, appUrl }), headers: headersFor(unsubUrl) };
+  return { subject: `Closed: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText: `${lead}${replyText(replyTo)}`, contentHtml: `<p>${escapeHtml(lead)}</p>${replyHtml(replyTo)}`, appUrl }), headers: headersFor(unsubUrl), replyTo };
 }
 
-export function buildReopenEmail({ issue, title, kind, unsubUrl, appUrl }) {
+export function buildReopenEmail({ issue, title, kind, unsubUrl, replyTo, appUrl }) {
   const label = KIND_LABEL[kind] || 'submission';
   const lead = `Your ${label} #${issue.number} ("${title}") was reopened. ${issue.html_url}`;
-  return { subject: `Reopened: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText: lead, contentHtml: `<p>${escapeHtml(lead)}</p>`, appUrl }), headers: headersFor(unsubUrl) };
+  return { subject: `Reopened: #${issue.number} — ${title}`, ...compose({ unsubUrl, contentText: `${lead}${replyText(replyTo)}`, contentHtml: `<p>${escapeHtml(lead)}</p>${replyHtml(replyTo)}`, appUrl }), headers: headersFor(unsubUrl), replyTo };
 }
 
 export function buildCommentEmail({ issue, title, kind, author, commentBody, commentUrl, unsubUrl, replyTo, appUrl }) {
   const label = KIND_LABEL[kind] || 'submission';
   const lead = `${author} commented on your ${label} #${issue.number} ("${title}"):`;
-  const replyLine = replyTo ? 'Reply to this email to respond on the issue.' : '';
+  const replyLine = replyTo ? REPLY_HINT : '';
   const contentText = `${lead}\n\n${commentBody}\n\nView: ${commentUrl}${replyLine ? `\n\n${replyLine}` : ''}`;
   const contentHtml =
     `<p>${escapeHtml(lead)}</p>` +
