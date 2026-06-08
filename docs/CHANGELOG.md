@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-06-08
+
+First tagged release. The account-free intake worker and two-way issue comments,
+plus repo governance scaffolding and project-board automation brought to parity
+with the sibling `punchin-email` worker.
+
 ### Added
 - **Two-way issue comments.** A reporter can opt into "Email me when someone comments"; each new
   maintainer comment is emailed to them, and they can **reply by email** — the reply is posted back
