@@ -13,7 +13,8 @@
     "dev": "wrangler dev",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "wrangler deploy --dry-run"
+    "check": "wrangler deploy --dry-run",
+    "sync-templates": "node scripts/sync-bundled.mjs"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
