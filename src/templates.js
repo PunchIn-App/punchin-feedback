@@ -18,6 +18,7 @@ export function parseIssueForm(text) {
       label: a.label ?? '',
       description: a.description ?? '',
       placeholder: a.placeholder ?? '',
+      value: a.value ?? '', // markdown blocks' instructional text (display only)
       required: entry.validations?.required === true,
       // dropdown options are strings; checkboxes options are {label,...} objects.
       options: (a.options || []).map((o) => (typeof o === 'string' ? o : o.label)),
