@@ -9,9 +9,12 @@ describe('unsubscribe tokens', () => {
     expect(await verifyUnsub(secret, t)).toBe(42);
   });
 
-  it('rejects a tampered token', async () => {
+  it('rejects a tampered signature', async () => {
     const t = await signUnsub(secret, 42);
-    const bad = t.slice(0, -1) + (t.endsWith('A') ? 'B' : 'A');
+    const [p, s] = t.split('.');
+    // Flip the FIRST signature char — always significant (unlike the last base64
+    // char, whose trailing bits can alias to the same decoded bytes).
+    const bad = `${p}.${s[0] === 'A' ? 'B' : 'A'}${s.slice(1)}`;
     expect(await verifyUnsub(secret, bad)).toBe(null);
   });
 
