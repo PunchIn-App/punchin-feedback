@@ -51,6 +51,6 @@ ACCENT           = "#2D5BF5"
 PROVENANCE_LABEL = "via-web-form"
 IMG_MAX_BYTES    = "5242880"
 IMG_MAX_COUNT    = "5"
-# Two-way comment replies: set to "1" only AFTER routing comment@<domain> to this
-# worker in Email Routing — otherwise the reply address bounces off the relay.
-ENABLE_EMAIL_REPLIES = ""
+# Two-way comment replies: enabled — comment@trackmytime.today is routed to this
+# worker in Email Routing (set up 2026-06-08), so reply addresses don't bounce.
+ENABLE_EMAIL_REPLIES = "1"
