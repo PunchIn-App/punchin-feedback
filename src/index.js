@@ -14,6 +14,7 @@ import { buildCopyEmail, buildClosedEmail, buildReopenEmail, sendEmail } from '.
 import { signUnsub, verifyUnsub } from './unsubscribe.js';
 import { checkHoneypot, rateLimit, verifyTurnstile } from './spam.js';
 import { renderForm, renderSuccess, renderError, renderMessage } from './render.js';
+import { handleSetup, handleSetupCallback } from './setup.js';
 
 const YEAR_MS = 365 * 24 * 3600 * 1000;
 const DAY30_MS = 30 * 24 * 3600 * 1000;
@@ -213,8 +214,8 @@ export default {
     if (pathname === '/submit') return request.method === 'POST' ? handleSubmit(request, env) : new Response('Method not allowed', { status: 405 });
     if (pathname === '/webhook') return request.method === 'POST' ? handleWebhook(request, env) : new Response('Method not allowed', { status: 405 });
     if (pathname === '/unsubscribe') return handleUnsubscribe(request, env);
-    if (pathname === '/setup') return new Response('not implemented', { status: 501 });
-    if (pathname === '/setup/callback') return new Response('not implemented', { status: 501 });
+    if (pathname === '/setup') return handleSetup(request, env);
+    if (pathname === '/setup/callback') return handleSetupCallback(request, env);
 
     const asset = pathname.match(/^\/a\/([^/]+)$/);
     if (asset) return serveImage(env, asset[1]);
