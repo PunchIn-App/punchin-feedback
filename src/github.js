@@ -69,6 +69,18 @@ export async function installationToken(env) {
   return token;
 }
 
+// Verify an inbound webhook: X-Hub-Signature-256 = 'sha256='+hex(HMAC-SHA256(secret, rawBody)).
+// Must be called on the RAW body (before JSON.parse). Constant-time via subtle.verify.
+export async function verifyWebhook(secret, rawBody, signatureHeader) {
+  if (typeof signatureHeader !== 'string' || !signatureHeader.startsWith('sha256=')) return false;
+  const hex = signatureHeader.slice(7);
+  if (hex.length === 0 || hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) return false;
+  const sigBytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < sigBytes.length; i++) sigBytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+  return crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(rawBody));
+}
+
 export async function createIssue(env, token, { title, body, labels }) {
   const r = await fetch(`${GH}/repos/${env.REPO_OWNER}/${env.REPO_NAME}/issues`, {
     method: 'POST',

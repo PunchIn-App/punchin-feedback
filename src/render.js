@@ -162,6 +162,15 @@ ${emailed ? '<p class="ds-body">We\'ve emailed you a copy and the link.</p>' : '
   return page({ title: 'Thank you', accent, sitekey: '', body });
 }
 
+export function renderMessage(title, message, { accent = '' } = {}) {
+  const body = `
+<a class="back" href="/">← PunchIn</a>
+<h1 class="ds-h1">${esc(title)}</h1>
+<p class="ds-body">${esc(message)}</p>
+<a class="btn" href="/">Done</a>`;
+  return page({ title, accent, sitekey: '', body });
+}
+
 export function renderError(message, { accent = '' } = {}) {
   const body = `
 <a class="back" href="/">← PunchIn</a>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { appJwt, installationToken, createIssue } from '../src/github.js';
+import { appJwt, installationToken, createIssue, verifyWebhook } from '../src/github.js';
 import { makeEnv, routeFetch } from './helpers.js';
 
 // --- helpers: generate a throwaway RSA key + base64url decode -----------------
@@ -78,5 +78,22 @@ describe('createIssue', () => {
     const env = makeEnv();
     vi.stubGlobal('fetch', routeFetch({ 'POST /issues': () => new Response('nope', { status: 403 }) }));
     await expect(createIssue(env, 'tok', { title: 'T', body: 'B', labels: [] })).rejects.toThrow();
+  });
+});
+
+describe('verifyWebhook', () => {
+  // GitHub's documented test vector.
+  const secret = "It's a Secret to Everybody";
+  const body = 'Hello, World!';
+  const sig = 'sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17';
+
+  it('accepts a correct signature', async () => {
+    expect(await verifyWebhook(secret, body, sig)).toBe(true);
+  });
+  it('rejects a wrong signature, secret, or malformed header', async () => {
+    expect(await verifyWebhook(secret, 'tampered', sig)).toBe(false);
+    expect(await verifyWebhook('wrong', body, sig)).toBe(false);
+    expect(await verifyWebhook(secret, body, 'sha256=zzzz')).toBe(false);
+    expect(await verifyWebhook(secret, body, null)).toBe(false);
   });
 });
