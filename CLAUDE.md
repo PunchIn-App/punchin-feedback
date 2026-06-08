@@ -1,14 +1,16 @@
 # punchin-feedback — AI Assistant Guide
 
+**Version:** 0.1.0
+
 A Cloudflare Worker providing an **account-free** bug-report / feature-request intake for the
 [PunchIn](https://github.com/PunchIn-App/punchin) app: it files real GitHub issues on a reporter's
 behalf via a GitHub App, hosts screenshot uploads in R2, and optionally emails the reporter a copy
 plus close/reopen follow-ups.
 
-**Status:** built — 70 tests passing, bundles clean (`npm run check`). The authoritative design is
+**Status:** built — 92 tests passing, bundles clean (`npm run check`). The authoritative design is
 [`docs/2026-06-07-punchin-feedback-design.md`](docs/2026-06-07-punchin-feedback-design.md); the
 build plan lives in `docs/superpowers/plans/`. **Read the design before changing anything**, and
-keep both current as code changes.
+keep it current (see Documentation Requirements in [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)).
 
 ## Conventions (mirror the sibling `punchin-email` worker)
 
@@ -44,7 +46,33 @@ templates/   committed issue-form .yml copies (fallback source; CI checks vs pun
 scripts/     sync-bundled.mjs (templates/*.yml -> src/bundledTemplates.js)
 test/        one vitest suite per module + helpers.js (binding test-doubles)
 docs/        design spec, build plan, CHANGELOG
+.github/     CONTRIBUTING, issue/PR templates, dependabot, CI + project-board/release workflows
 ```
+
+## Project board automation
+
+This repo is tracked on the shared **[PunchIn project board](https://github.com/orgs/PunchIn-App/projects/1)**
+(org project #1) alongside `punchin` and `punchin-email`. Three workflows under
+`.github/workflows/` automate it, all running under the `ADD_TO_PROJECT_PAT`
+secret (Projects + Issues read/write, Contents read):
+
+- `project-automation.yml` — adds new issues/PRs to the board and sets
+  Labels / Priority / Size / Start+Target dates (best-effort — a field the board
+  lacks is logged and skipped). Clears assignees on close. **Status** is left to
+  the board's built-in workflows so it never fights them.
+- `milestone-on-release.yml` — on a MINOR/MAJOR release (`vX.Y.0`), creates the
+  milestone and assigns merged PRs since the last minor/major (patch releases
+  publish but get no milestone; their PRs roll into the next minor/major).
+- `notify-status-update.yml` — on release, relays to `punchin`
+  (`repository_dispatch: feedback-release`) so punchin posts one unified,
+  whole-project status update.
+
+> ⚠️ The `ADD_TO_PROJECT_PAT` secret is **not yet set on this repo** (it currently
+> lives only on `punchin-email`). Until it's added here, `project-automation.yml`
+> fails on issue/PR events; the two release workflows stay dormant until the first
+> release. `notify-status-update.yml` additionally needs `punchin`'s
+> `project-status-update.yml` to accept the `feedback-release` dispatch type (and
+> to add `punchin-feedback` to its digest `repos` list).
 
 ## Conventions worth keeping
 

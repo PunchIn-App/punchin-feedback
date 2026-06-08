@@ -4,20 +4,29 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+
+# Least privilege: the workflow only checks out and tests the code.
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
-      - run: npm test
-      - run: npx wrangler deploy --dry-run
+
+      - name: Run tests
+        run: npm test
+
+      - name: Bundle check (wrangler dry-run)
+        run: npm run check
 
   template-sync:
     # The worker renders from templates/*.yml (bundled into src/bundledTemplates.js).
@@ -26,10 +35,14 @@ jobs:
     # keeping templates/ in step with punchin's is a manual sync — see README.)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: node scripts/sync-bundled.mjs
+
+      - name: Regenerate src/bundledTemplates.js from templates/*.yml
+        run: node scripts/sync-bundled.mjs
+
       - name: src/bundledTemplates.js is in sync with templates/*.yml
         run: git diff --exit-code src/bundledTemplates.js || (echo "::error::Run 'npm run sync-templates' and commit src/bundledTemplates.js" && exit 1)

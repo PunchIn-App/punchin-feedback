@@ -25,5 +25,5 @@ All notable changes to this project are documented here. The format follows
     unsubscribe.
   - Spam controls: honeypot, per-IP rate limit, and optional Cloudflare Turnstile.
   - One-click GitHub App creation via the App Manifest flow (`/setup`).
-  - 70 unit + integration tests; CI runs the suite, a `wrangler` dry-run, and a template-parity
+  - 92 unit + integration tests; CI runs the suite, a `wrangler` dry-run, and a template-parity
     check against `punchin`'s default branch.
