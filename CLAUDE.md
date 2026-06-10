@@ -19,7 +19,7 @@ keep it current (see Documentation Requirements in [`.github/CONTRIBUTING.md`](.
 - Pure, runtime-agnostic logic lives in small, focused modules; `src/index.js` keeps to its
   `fetch()` / `scheduled()` entrypoints + the request/webhook/cron handlers.
 - **No PII or secrets in `wrangler.toml [vars]`** — secrets go through `wrangler secret put`.
-- Reject/҂fail safely: a filed issue must never be lost to a downstream (KV/email) hiccup; webhook
+- Reject / fail safely: a filed issue must never be lost to a downstream (KV/email) hiccup; webhook
   handling is HMAC-verified and idempotent.
 
 ## Module map (`src/`)
@@ -45,7 +45,7 @@ assets/      self-hosted styles.css + Noto WOFF2 (served by Workers Static Asset
 templates/   committed issue-form .yml copies (fallback source; CI checks vs punchin main)
 scripts/     sync-bundled.mjs (templates/*.yml -> src/bundledTemplates.js)
 test/        one vitest suite per module + helpers.js (binding test-doubles)
-docs/        design spec, build plan, CHANGELOG
+docs/        design spec, build plan, CHANGELOG, RELEASING (versioning + release procedure)
 .github/     CONTRIBUTING, issue/PR templates, dependabot, CI + project-board/release workflows
 ```
 
@@ -67,12 +67,12 @@ secret (Projects + Issues read/write, Contents read):
   (`repository_dispatch: feedback-release`) so punchin posts one unified,
   whole-project status update.
 
-> ⚠️ The `ADD_TO_PROJECT_PAT` secret is **not yet set on this repo** (it currently
-> lives only on `punchin-email`). Until it's added here, `project-automation.yml`
-> fails on issue/PR events; the two release workflows stay dormant until the first
-> release. `notify-status-update.yml` additionally needs `punchin`'s
-> `project-status-update.yml` to accept the `feedback-release` dispatch type (and
-> to add `punchin-feedback` to its digest `repos` list).
+> The `ADD_TO_PROJECT_PAT` secret **is set on this repo** (since 2026-06-08), so
+> `project-automation.yml` and the release workflows run normally (v1.0.1 has
+> shipped). ⚠️ Remaining wiring gap: `punchin`'s `project-status-update.yml` does
+> not yet accept the `feedback-release` dispatch type or include
+> `punchin-feedback` in its digest `repos` list, so `notify-status-update.yml`
+> relays aren't reflected in the unified status updates until that lands.
 
 ## Conventions worth keeping
 

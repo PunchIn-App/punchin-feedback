@@ -2,15 +2,13 @@
 
 ## Supported Versions
 
-This worker is pre-1.0. Only the **latest** `0.x` release is actively supported
-with security updates; while on `0.x`, fixes ship forward rather than being
-backported to older `0.x` builds. Once `1.0.0` is cut, this table switches to the
-usual "latest minor" policy.
+Only the latest release of the PunchIn Feedback Worker is actively supported
+with security updates.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.x (latest) | Yes |
-| older 0.x    | No  |
+| 1.0.x   | Yes       |
+| < 1.0   | No        |
 
 ## Scope
 

@@ -1,6 +1,6 @@
 # punchin-feedback
 
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2D5BF5?style=flat)](LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-2D5BF5?style=flat)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/PunchIn-App/punchin-feedback/ci.yml?branch=main&style=flat&label=CI&color=2D5BF5)](https://github.com/PunchIn-App/punchin-feedback/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.0.1-2D5BF5?style=flat)](docs/CHANGELOG.md)
 
@@ -128,6 +128,7 @@ npm run deploy
 | `ACCENT` | Brand accent colour |
 | `PROVENANCE_LABEL` | Extra label on web-filed issues |
 | `IMG_MAX_BYTES` / `IMG_MAX_COUNT` | Screenshot caps |
+| `ENABLE_EMAIL_REPLIES` | Set to `"1"` to post reporters' email replies as issue comments (see [Two-way comments](#two-way-comments-optional)) |
 
 Secrets (never in `[vars]`): `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`,
 `UNSUB_SECRET`, `TURNSTILE_SECRET`.
@@ -148,8 +149,10 @@ the build plan in [`docs/superpowers/plans/`](docs/superpowers/plans/).
 ## Contributing
 
 Contributions are welcome. See [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)
-for the workflow, versioning, documentation, and testing requirements. There's no
-CLA — contributions are accepted under the project's Apache-2.0 license. This
+for the workflow, versioning, documentation, and testing requirements.
+Contributions require agreeing to the
+[Contributor License Agreement](.github/CLA.md) — you sign by including the
+sign-off line from the PR template in your pull request description. This
 project follows a [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
@@ -160,5 +163,11 @@ CVE is assigned) — see [SECURITY.md](SECURITY.md) for the full policy.
 
 ## License
 
-[Apache License 2.0](LICENSE) — free to use, modify, host, and redistribute
-(including commercially) with attribution. Includes an explicit patent grant.
+[Business Source License 1.1](LICENSE) — any individual may use, modify, and
+self-host the worker to run feedback intake for a project or repository they
+personally control, at no charge. Organizational use (a company, agency, or
+other legal entity deploying it as part of its internal tooling, support
+infrastructure, or operations) requires a commercial license from PunchIn-App
+([licensing@trackmytime.today](mailto:licensing@trackmytime.today)). On the
+Change Date (2030-06-02) the license converts to the
+[GNU AGPL v3.0](https://www.gnu.org/licenses/agpl-3.0.en.html).

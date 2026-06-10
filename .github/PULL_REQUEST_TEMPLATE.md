@@ -39,3 +39,9 @@
 
 - [ ] `CLAUDE.md` updated where relevant (Module map / Conventions / Configuration & Bindings)
 - [ ] `README.md` updated if behaviour or setup changed
+
+### Contributor License Agreement
+
+> I have read and agree to the PunchIn Feedback Worker Contributor License Agreement.
+
+<!-- Replace the line above with your own sign-off, or delete it and add it as a comment after opening the PR if you prefer. -->
