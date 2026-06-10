@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "description": "Account-free bug-report / feature-request intake for PunchIn — derives forms from the GitHub issue templates, files issues via a GitHub App, hosts screenshots in R2, and emails reporters.",
-  "license": "Apache-2.0",
+  "license": "BUSL-1.1",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
