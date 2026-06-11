@@ -113,6 +113,29 @@ describe('POST /submit', () => {
     expect(issued).toBe(false);
   });
 
+  it('carries from=app through to an overlay-safe success page (issue #6)', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    // GET: the app's link includes ?from=app → no root links, hidden field set
+    const form = await (await worker.fetch(req('/bug?from=app'), env, ctx)).text();
+    expect(form).toContain('<input type="hidden" name="from" value="app">');
+    expect(form).not.toContain('href="/"');
+    // POST: the carried field makes the success page overlay-safe too
+    const res = await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ from: 'app' }) }), env, ctx);
+    expect(res.status).toBe(200);
+    const t = await res.text();
+    expect(t).toContain('close this window');
+    expect(t).not.toContain('href="/"');
+  });
+
+  it('a form error keeps the app context (from field survives the re-render)', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    const res = await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ from: 'app', title: '' }) }), env, ctx);
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('<input type="hidden" name="from" value="app">');
+  });
+
   it('rejects a missing required field with a form error', async () => {
     const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
     vi.stubGlobal('fetch', routeFetch(ghRoutes));

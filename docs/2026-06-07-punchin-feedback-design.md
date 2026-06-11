@@ -163,6 +163,11 @@ GitHub's own issue forms, so they can't diverge:
 - `version` / `install-type` — a standalone page can't know these, so they **prefill from query
   params** that the PunchIn app passes when it links in (§14). Direct visitors leave them to fill
   manually (version is shown in the app's Settings → About). All prefilled fields stay editable.
+- `from=app` — not a field: marks app context. The app opens these pages in an in-app browser
+  overlay (Android Custom Tab / iOS in-app Safari) that no navigation can escape, so in this
+  context the form drops the "← PunchIn" root link and success/message pages show a
+  "close this window" hint instead of a root link (issue #6). Carried through the form via a
+  hidden input, like `theme`/`accent`. Direct visitors get a "Back to PunchIn" link.
 
 **Reporter section** ("Email me about this — optional"), separate from the issue schema:
 
@@ -337,6 +342,9 @@ repo is currently checked out there — branch *from* it, don't commit onto it).
   feature without a GitHub account"** linking to `feedback.trackmytime.today/{bug,feature}` with
   `version` + `install-type` (+ the existing `browser`/`os`/`device`) prefilled — alongside the
   existing GitHub deep-links (GitHub users keep the native path).
+- Add **`from=app`** to both feedback-form builders so the worker can render overlay-safe exits
+  (§6, issue #6) — the app always opens the forms in a context where "close this window" is the
+  only correct way back.
 - **Honor punchin's docs-sync CI:** update `docs/ARCHITECTURE.md` / `docs/TEST-COVERAGE.md` for any
   new/changed source or test file, add tests for the new builders, and add a `docs/CHANGELOG.md`
   entry (user-visible). Use the `skip-docs-check` label only if genuinely N/A.
