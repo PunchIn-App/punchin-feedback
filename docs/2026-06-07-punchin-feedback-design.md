@@ -318,6 +318,13 @@ provenance label, caps, Turnstile on/off). Forms derive from the adopter's own t
 automatically (§5). Ship a **GitHub App manifest** for one-click install. README documents the App
 install, KV, R2, custom domain, cron, secrets, and the optional relay-alias reply routing.
 
+**Licensing boundary (BUSL-1.1, since the v1.1.0 relicense):** self-hosting remains free for an
+individual running feedback intake for a project or repository they personally control (the
+LICENSE's Additional Use Grant). Organizational use — a company, agency, or other legal entity
+deploying it in its internal tooling, support infrastructure, or operations — requires a
+commercial license from PunchIn-App (licensing@trackmytime.today). On the Change Date
+(2030-06-02) the work relicenses to AGPL-3.0.
+
 ---
 
 ## 13. KV data model
