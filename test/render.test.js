@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseIssueForm } from '../src/templates.js';
 import { bundled } from '../src/bundledTemplates.js';
-import { renderForm, renderSuccess, renderError, sanitizeTheme, sanitizeAccent } from '../src/render.js';
+import { renderForm, renderSuccess, renderError, renderMessage, sanitizeTheme, sanitizeAccent } from '../src/render.js';
 
 const bug = parseIssueForm(bundled.bug);
 
@@ -111,5 +111,39 @@ describe('renderSuccess / renderError', () => {
   });
   it('error page shows the message', () => {
     expect(renderError('Could not file the issue')).toContain('Could not file the issue');
+  });
+});
+
+// In-app overlay context (issue #6): when the app links in with ?from=app, the
+// pages must offer NO root links — navigating to "/" inside the Custom Tab /
+// in-app Safari overlay loads a second copy of the app instead of returning to
+// the PWA. The only correct exit is closing the overlay.
+describe('app context (from=app)', () => {
+  it('the form drops the root back link and carries the hidden from field', () => {
+    const html = renderForm(bug, { kind: 'bug', fromApp: true });
+    expect(html).not.toContain('href="/"');
+    expect(html).toContain('<input type="hidden" name="from" value="app">');
+  });
+
+  it('the form keeps the back link for direct visits (and no from field)', () => {
+    const html = renderForm(bug, { kind: 'bug' });
+    expect(html).toContain('<a class="back" href="/">← PunchIn</a>');
+    expect(html).not.toContain('name="from"');
+  });
+
+  it('the success page swaps every root link for a close-this-window hint', () => {
+    const html = renderSuccess({ number: 7, html_url: 'x', emailed: false, fromApp: true });
+    expect(html).not.toContain('href="/"');
+    expect(html).toContain('close this window');
+  });
+
+  it('the success page links back to the app for direct visits', () => {
+    const html = renderSuccess({ number: 7, html_url: 'x', emailed: false });
+    expect(html).toContain('<a class="btn" href="/">Back to PunchIn</a>');
+  });
+
+  it('renderMessage (unsubscribe et al.) follows the same rule', () => {
+    expect(renderMessage('Unsubscribed', 'ok')).toContain('Back to PunchIn');
+    expect(renderMessage('Unsubscribed', 'ok', { fromApp: true })).not.toContain('href="/"');
   });
 });

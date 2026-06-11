@@ -36,10 +36,11 @@ async function replyAddress(env, n) {
 }
 
 const html = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
-// `ui` carries the user's theme/accent (from the app) through error/success pages.
-const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme }), status);
+// `ui` carries the user's theme/accent + app context (from the app) through
+// error/success pages.
+const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme, fromApp: ui.fromApp }), status);
 const formError = (env, schema, kind, values, msg, status, ui = {}) =>
-  html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent: ui.accent || env.ACCENT, theme: ui.theme, prefill: prefillFrom(values), error: msg }), status);
+  html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent: ui.accent || env.ACCENT, theme: ui.theme, fromApp: ui.fromApp, prefill: prefillFrom(values), error: msg }), status);
 
 function prefillFrom(values) {
   return { ...values.fields, title: values.title, reporterEmail: values.reporterEmail, notify: values.notify, _hp: values._hp };
@@ -84,7 +85,8 @@ async function handleForm(request, env, kind) {
   for (const [k, v] of new URL(request.url).searchParams) prefill[k] = v;
   const theme = sanitizeTheme(prefill.theme);
   const accent = sanitizeAccent(prefill.accent) || env.ACCENT;
-  return html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent, theme, prefill }));
+  const fromApp = prefill.from === 'app';
+  return html(renderForm(schema, { kind, turnstileSitekey: env.TURNSTILE_SITEKEY, accent, theme, fromApp, prefill }));
 }
 
 // POST /submit
@@ -97,9 +99,9 @@ async function handleSubmit(request, env) {
   } catch {
     return htmlError(env, 'Invalid form submission.', 400);
   }
-  // Theme + accent the app passed (carried through hidden fields) so the
-  // error/success pages stay native too.
-  const ui = { theme: sanitizeTheme(fd.get('theme')), accent: sanitizeAccent(fd.get('accent')) };
+  // Theme + accent + app context the app passed (carried through hidden
+  // fields) so the error/success pages stay native — and overlay-safe — too.
+  const ui = { theme: sanitizeTheme(fd.get('theme')), accent: sanitizeAccent(fd.get('accent')), fromApp: fd.get('from') === 'app' };
   const kind = fd.get('kind');
   if (kind !== 'bug' && kind !== 'feature') return htmlError(env, 'Unknown form.', 400, ui);
 
@@ -157,7 +159,7 @@ async function handleSubmit(request, env) {
     /* best-effort — the issue is already filed */
   }
 
-  return html(renderSuccess({ number: issue.number, html_url: issue.html_url, emailed, accent: ui.accent || env.ACCENT, theme: ui.theme }));
+  return html(renderSuccess({ number: issue.number, html_url: issue.html_url, emailed, accent: ui.accent || env.ACCENT, theme: ui.theme, fromApp: ui.fromApp }));
 }
 
 // POST /webhook (GitHub App: issues closed/reopened, and issue comments)

@@ -12,6 +12,18 @@ const esc = (s) =>
 export const sanitizeTheme = (t) => (t === 'light' || t === 'dark' ? t : '');
 export const sanitizeAccent = (a) => (/^#[0-9a-fA-F]{3,8}$/.test(a || '') ? a : '');
 
+// The app opens these pages in an in-app browser overlay (Android Custom Tab /
+// iOS in-app Safari) where navigating to "/" loads a second copy of the app
+// INSIDE the overlay instead of returning to the PWA (issue #6). When the app
+// links in with ?from=app (carried through the form like theme/accent), drop
+// every root link and tell the user to close the overlay instead — no
+// navigation target can escape it.
+const backLink = (fromApp) => (fromApp ? '' : '<a class="back" href="/">← PunchIn</a>');
+const exitAction = (fromApp) =>
+  fromApp
+    ? '<p class="ds-body">All set — you can close this window to get back to PunchIn.</p>'
+    : '<a class="btn" href="/">Back to PunchIn</a>';
+
 // Screenshots: Cloudflare's Turnstile api.js does NOT support Subresource
 // Integrity (it is a first-party, auto-updated script), so no integrity attr.
 function turnstileHead(sitekey) {
@@ -114,21 +126,21 @@ const SNIFF = `<script>
 })();
 </script>`;
 
-export function renderForm(schema, { kind, turnstileSitekey = '', accent = '', theme = '', prefill = {}, error = null } = {}) {
+export function renderForm(schema, { kind, turnstileSitekey = '', accent = '', theme = '', fromApp = false, prefill = {}, error = null } = {}) {
   const notify = prefill.notify || { copy: true, closed: false, reopened: false, commented: false };
   const errorBanner = error ? `<div class="error" role="alert">${esc(error)}</div>` : '';
   const fields = schema.fields.map((f) => blockFor(f, prefill)).join('\n');
   const turnstile = turnstileSitekey ? `<div class="cf-turnstile" data-sitekey="${esc(turnstileSitekey)}"></div>` : '';
 
   const body = `
-<a class="back" href="/">← PunchIn</a>
+${backLink(fromApp)}
 <h1 class="ds-h1">${esc(schema.name)}</h1>
 <p class="ds-body">${esc(schema.description)}</p>
 ${errorBanner}
 <form method="POST" action="/submit" enctype="multipart/form-data">
   <input type="hidden" name="kind" value="${esc(kind)}">
   <input type="hidden" name="theme" value="${esc(sanitizeTheme(theme))}">
-  <input type="hidden" name="accent" value="${esc(sanitizeAccent(accent))}">
+  <input type="hidden" name="accent" value="${esc(sanitizeAccent(accent))}">${fromApp ? '\n  <input type="hidden" name="from" value="app">' : ''}
   <div class="hp" aria-hidden="true"><label>Leave this empty<input name="_hp" tabindex="-1" autocomplete="off" value="${esc(prefill._hp ?? '')}"></label></div>
 
   <div class="field">
@@ -165,28 +177,28 @@ ${SNIFF}`;
   return page({ title: schema.name, accent, theme, sitekey: turnstileSitekey, body });
 }
 
-export function renderSuccess({ number, html_url, emailed, accent = '', theme = '' }) {
+export function renderSuccess({ number, html_url, emailed, accent = '', theme = '', fromApp = false }) {
   const body = `
-<a class="back" href="/">← PunchIn</a>
+${backLink(fromApp)}
 <h1 class="ds-h1">Thank you</h1>
 <p class="ds-body">Your feedback was filed as <a href="${esc(html_url)}">#${esc(number)}</a>.</p>
 ${emailed ? '<p class="ds-body">We\'ve emailed you a copy and the link.</p>' : ''}
-<a class="btn" href="/">Done</a>`;
+${exitAction(fromApp)}`;
   return page({ title: 'Thank you', accent, theme, sitekey: '', body });
 }
 
-export function renderMessage(title, message, { accent = '', theme = '' } = {}) {
+export function renderMessage(title, message, { accent = '', theme = '', fromApp = false } = {}) {
   const body = `
-<a class="back" href="/">← PunchIn</a>
+${backLink(fromApp)}
 <h1 class="ds-h1">${esc(title)}</h1>
 <p class="ds-body">${esc(message)}</p>
-<a class="btn" href="/">Done</a>`;
+${exitAction(fromApp)}`;
   return page({ title, accent, theme, sitekey: '', body });
 }
 
-export function renderError(message, { accent = '', theme = '' } = {}) {
+export function renderError(message, { accent = '', theme = '', fromApp = false } = {}) {
   const body = `
-<a class="back" href="/">← PunchIn</a>
+${backLink(fromApp)}
 <h1 class="ds-h1">Something went wrong</h1>
 <div class="error" role="alert">${esc(message)}</div>
 <a class="btn" href="javascript:history.back()">Go back</a>`;

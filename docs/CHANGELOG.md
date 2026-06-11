@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **In-app overlay exit (#6).** The form's "← PunchIn" back link and the post-submit "Done" button
+  pointed at `/`, which — inside the in-app browser overlay the PWA opens (Android Custom Tab /
+  iOS in-app Safari) — loaded a second copy of the app *inside the overlay* instead of returning
+  to the PWA. The app now marks its links with `?from=app` (carried through the form like
+  theme/accent); in that context the pages drop every root link and show "close this window to
+  get back to PunchIn" instead. Direct visitors keep a link, relabelled "Back to PunchIn".
+  Requires the companion `punchin` change that adds the param to its feedback links.
+
 ## [1.0.1] — 2026-06-08
 
 First tagged release. The account-free intake worker and two-way issue comments,

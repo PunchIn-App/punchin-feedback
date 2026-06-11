@@ -35,7 +35,7 @@ keep it current (see Documentation Requirements in [`.github/CONTRIBUTING.md`](.
 | `email.js` | `buildCopyEmail`/`buildClosedEmail`/`buildReopenEmail` (unsubscribe-at-top + `List-Unsubscribe`) and `sendEmail`. |
 | `unsubscribe.js` | `signUnsub`/`verifyUnsub` — HMAC tokens encoding the issue number + expiry. |
 | `spam.js` | `checkHoneypot`, `rateLimit` (per-IP KV), `verifyTurnstile`. |
-| `render.js` | `renderForm`/`renderSuccess`/`renderError`/`renderMessage` — brand HTML, inline UA sniff, disclosures, Turnstile widget. |
+| `render.js` | `renderForm`/`renderSuccess`/`renderError`/`renderMessage` — brand HTML, inline UA sniff, disclosures, Turnstile widget. With `from=app` (app context, carried like theme/accent) pages drop root links and show a "close this window" exit — navigation can't escape the app's in-app overlay (issue #6). |
 | `setup.js` | `handleSetup`/`handleSetupCallback` — GitHub App manifest one-click flow. |
 
 ## Other layout
