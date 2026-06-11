@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-06-11
+
+### Fixed
+- **App-context exit is now best-effort, not just instructional.** The success/message pages'
+  "close this window" guidance gains a **Close this window** button that attempts
+  `window.close()` — which works when the form was opened as a plain script-opened tab — and,
+  where the in-app overlay (Android Custom Tab / iOS in-app Safari) refuses it, the button swaps
+  for a pre-rendered hint pointing at the overlay's own ✕. The static instruction line remains
+  for the no-JS case. (#6 follow-up)
+
 ## [1.1.0] — 2026-06-11
 
 ### Fixed

@@ -146,4 +146,24 @@ describe('app context (from=app)', () => {
     expect(renderMessage('Unsubscribed', 'ok')).toContain('Back to PunchIn');
     expect(renderMessage('Unsubscribed', 'ok', { fromApp: true })).not.toContain('href="/"');
   });
+
+  // The exit must be best-effort, not just instructional: a Close button tries
+  // window.close() (works in plain script-opened tabs); the in-app overlays
+  // refuse it, so a pre-rendered hidden hint points at the overlay's own ✕.
+  it('app-context success/message pages carry the close button + fallback wiring', () => {
+    for (const html of [
+      renderSuccess({ number: 7, html_url: 'x', emailed: false, fromApp: true }),
+      renderMessage('Unsubscribed', 'ok', { fromApp: true }),
+    ]) {
+      expect(html).toContain('id="close-window"');
+      expect(html).toContain('window.close()');
+      expect(html).toMatch(/<p[^>]*id="close-hint"[^>]*hidden>/);
+    }
+  });
+
+  it('direct-visit pages carry no close-button script', () => {
+    const html = renderSuccess({ number: 7, html_url: 'x', emailed: false });
+    expect(html).not.toContain('id="close-window"');
+    expect(html).not.toContain('window.close()');
+  });
 });

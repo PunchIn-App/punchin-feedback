@@ -13,15 +13,34 @@ export const sanitizeTheme = (t) => (t === 'light' || t === 'dark' ? t : '');
 export const sanitizeAccent = (a) => (/^#[0-9a-fA-F]{3,8}$/.test(a || '') ? a : '');
 
 // The app opens these pages in an in-app browser overlay (Android Custom Tab /
-// iOS in-app Safari) where navigating to "/" loads a second copy of the app
-// INSIDE the overlay instead of returning to the PWA (issue #6). When the app
-// links in with ?from=app (carried through the form like theme/accent), drop
-// every root link and tell the user to close the overlay instead — no
-// navigation target can escape it.
+// iOS in-app Safari) or a new tab — never in its own context — and navigating
+// to "/" loads a second copy of the app INSIDE the overlay instead of
+// returning to the PWA (issue #6). When the app links in with ?from=app
+// (carried through the form like theme/accent), drop every root link and
+// offer a best-effort Close button instead: window.close() works in plain
+// script-opened tabs but is refused by the in-app overlays, so when the page
+// survives the attempt the button swaps to pointing at the overlay's own ✕.
+// The static "close this window" line covers the no-JS case.
 const backLink = (fromApp) => (fromApp ? '' : '<a class="back" href="/">← PunchIn</a>');
+const CLOSE_SCRIPT = `<script>
+(function(){
+  var b=document.getElementById('close-window'),h=document.getElementById('close-hint');
+  if(!b)return;
+  b.addEventListener('click',function(){
+    window.close();
+    // Still here after the attempt -> the overlay refused window.close();
+    // reveal the pre-rendered hint pointing at its own close affordance
+    // instead of leaving a dead button.
+    setTimeout(function(){ b.hidden=true; if(h)h.hidden=false; },300);
+  });
+})();
+</script>`;
 const exitAction = (fromApp) =>
   fromApp
-    ? '<p class="ds-body">All set — you can close this window to get back to PunchIn.</p>'
+    ? `<p class="ds-body">All set — you can close this window to get back to PunchIn.</p>
+<button type="button" class="btn" id="close-window">Close this window</button>
+<p class="ds-body" id="close-hint" hidden>This window is not allowed to close itself — use the ✕ at the top of this window to get back to PunchIn.</p>
+${CLOSE_SCRIPT}`
     : '<a class="btn" href="/">Back to PunchIn</a>';
 
 // Screenshots: Cloudflare's Turnstile api.js does NOT support Subresource

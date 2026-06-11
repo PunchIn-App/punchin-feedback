@@ -1,13 +1,13 @@
 # punchin-feedback — AI Assistant Guide
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 
 A Cloudflare Worker providing an **account-free** bug-report / feature-request intake for the
 [PunchIn](https://github.com/PunchIn-App/punchin) app: it files real GitHub issues on a reporter's
 behalf via a GitHub App, hosts screenshot uploads in R2, and optionally emails the reporter a copy
 plus close/reopen follow-ups.
 
-**Status:** built — 99 tests passing, bundles clean (`npm run check`). The authoritative design is
+**Status:** built — 101 tests passing, bundles clean (`npm run check`). The authoritative design is
 [`docs/2026-06-07-punchin-feedback-design.md`](docs/2026-06-07-punchin-feedback-design.md); the
 build plan lives in `docs/superpowers/plans/`. **Read the design before changing anything**, and
 keep it current (see Documentation Requirements in [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)).
@@ -35,7 +35,7 @@ keep it current (see Documentation Requirements in [`.github/CONTRIBUTING.md`](.
 | `email.js` | `buildCopyEmail`/`buildClosedEmail`/`buildReopenEmail` (unsubscribe-at-top + `List-Unsubscribe`) and `sendEmail`. |
 | `unsubscribe.js` | `signUnsub`/`verifyUnsub` — HMAC tokens encoding the issue number + expiry. |
 | `spam.js` | `checkHoneypot`, `rateLimit` (per-IP KV), `verifyTurnstile`. |
-| `render.js` | `renderForm`/`renderSuccess`/`renderError`/`renderMessage` — brand HTML, inline UA sniff, disclosures, Turnstile widget. With `from=app` (app context, carried like theme/accent) pages drop root links and show a "close this window" exit — navigation can't escape the app's in-app overlay (issue #6). |
+| `render.js` | `renderForm`/`renderSuccess`/`renderError`/`renderMessage` — brand HTML, inline UA sniff, disclosures, Turnstile widget. With `from=app` (app context, carried like theme/accent) pages drop root links and show a "close this window" exit — a best-effort `window.close()` button that swaps to a use-the-✕ hint where the in-app overlay refuses it; navigation can't escape the overlay (issue #6). |
 | `setup.js` | `handleSetup`/`handleSetupCallback` — GitHub App manifest one-click flow. |
 
 ## Other layout
