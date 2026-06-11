@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-06-11
+
+### Changed
+- **App-context windows can now genuinely close themselves.** Browsers only honour
+  `window.close()` when the window has an opener or its back/forward stack holds fewer than two
+  entries (the OAuth-popup pattern). The app opens the forms with `noopener`, and a native POST
+  navigation made the success page entry #2 — so the v1.1.1 Close button always fell back to the
+  ✕ hint. In app context the form now submits via `fetch()` and the response (success, form
+  error, or error page) replaces the document in place, keeping the stack at one entry — the
+  Close button is then permitted to dismiss the tab/Custom Tab. Native form POST remains for
+  direct visitors, no-JS, and as the automatic fallback if `fetch()` fails. (#6 follow-up)
+
 ## [1.1.1] — 2026-06-11
 
 ### Fixed

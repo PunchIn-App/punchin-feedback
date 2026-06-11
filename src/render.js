@@ -17,20 +17,47 @@ export const sanitizeAccent = (a) => (/^#[0-9a-fA-F]{3,8}$/.test(a || '') ? a : 
 // to "/" loads a second copy of the app INSIDE the overlay instead of
 // returning to the PWA (issue #6). When the app links in with ?from=app
 // (carried through the form like theme/accent), drop every root link and
-// offer a best-effort Close button instead: window.close() works in plain
-// script-opened tabs but is refused by the in-app overlays, so when the page
-// survives the attempt the button swaps to pointing at the overlay's own ✕.
-// The static "close this window" line covers the no-JS case.
+// offer a Close button instead.
+//
+// Making window.close() actually work: browsers only honour close() when the
+// window has an opener, or when its back/forward stack holds fewer than two
+// entries (the OAuth-popup pattern — redirects reuse the entry, so auth tabs
+// may self-close). The app opens us with noopener, and a native POST to
+// /submit would be entry #2 — so in app context the form is submitted via
+// fetch() and the response replaces the document in place (document.open/
+// write reuses the single history entry). Where an overlay still refuses
+// close() (e.g. iOS in-app Safari), the button swaps to pointing at the
+// overlay's own ✕. The static "close this window" line and the native form
+// POST cover the no-JS case.
 const backLink = (fromApp) => (fromApp ? '' : '<a class="back" href="/">← PunchIn</a>');
+const AJAX_SUBMIT_SCRIPT = `<script>
+(function(){
+  var f=document.querySelector('form[action="/submit"]');
+  if(!f||!window.fetch)return;
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=f.querySelector('button[type="submit"]');
+    if(btn)btn.disabled=true;
+    fetch('/submit',{method:'POST',body:new FormData(f)})
+      .then(function(r){return r.text();})
+      // Same-origin response we rendered ourselves — replacing the document
+      // is equivalent in trust to the navigation it stands in for, and
+      // document.write keeps the history stack at one entry so the success
+      // page's Close button stays permitted.
+      .then(function(html){document.open();document.write(html);document.close();})
+      .catch(function(){ if(btn)btn.disabled=false; f.submit(); });
+  });
+})();
+</script>`;
 const CLOSE_SCRIPT = `<script>
 (function(){
   var b=document.getElementById('close-window'),h=document.getElementById('close-hint');
   if(!b)return;
   b.addEventListener('click',function(){
     window.close();
-    // Still here after the attempt -> the overlay refused window.close();
-    // reveal the pre-rendered hint pointing at its own close affordance
-    // instead of leaving a dead button.
+    // Still here after the attempt -> this context refused window.close();
+    // reveal the pre-rendered hint pointing at the overlay's own close
+    // affordance instead of leaving a dead button.
     setTimeout(function(){ b.hidden=true; if(h)h.hidden=false; },300);
   });
 })();
@@ -191,7 +218,7 @@ ${errorBanner}
   ${turnstile}
   <button type="submit" class="btn">Submit</button>
 </form>
-${SNIFF}`;
+${SNIFF}${fromApp ? AJAX_SUBMIT_SCRIPT : ''}`;
 
   return page({ title: schema.name, accent, theme, sitekey: turnstileSitekey, body });
 }
