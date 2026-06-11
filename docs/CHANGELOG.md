@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-06-11
+
 ### Fixed
 - **In-app overlay exit (#6).** The form's "← PunchIn" back link and the post-submit "Done" button
   pointed at `/`, which — inside the in-app browser overlay the PWA opens (Android Custom Tab /
@@ -13,6 +15,13 @@ All notable changes to this project are documented here. The format follows
   theme/accent); in that context the pages drop every root link and show "close this window to
   get back to PunchIn" instead. Direct visitors keep a link, relabelled "Back to PunchIn".
   Requires the companion `punchin` change that adds the param to its feedback links.
+
+### Changed
+- **Relicensed Apache-2.0 → Business Source License 1.1** (PR #4), matching the PunchIn app's
+  licensing model. Individuals may still use, modify, and self-host the worker to run feedback
+  intake for a project or repository they personally control, at no charge (the LICENSE's
+  Additional Use Grant); organizational use requires a commercial license from PunchIn-App.
+  On the Change Date (2030-06-02) the work relicenses to AGPL-3.0.
 
 ## [1.0.1] — 2026-06-08
 

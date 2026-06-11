@@ -1,13 +1,13 @@
 # punchin-feedback — AI Assistant Guide
 
-**Version:** 1.0.1
+**Version:** 1.1.0
 
 A Cloudflare Worker providing an **account-free** bug-report / feature-request intake for the
 [PunchIn](https://github.com/PunchIn-App/punchin) app: it files real GitHub issues on a reporter's
 behalf via a GitHub App, hosts screenshot uploads in R2, and optionally emails the reporter a copy
 plus close/reopen follow-ups.
 
-**Status:** built — 92 tests passing, bundles clean (`npm run check`). The authoritative design is
+**Status:** built — 99 tests passing, bundles clean (`npm run check`). The authoritative design is
 [`docs/2026-06-07-punchin-feedback-design.md`](docs/2026-06-07-punchin-feedback-design.md); the
 build plan lives in `docs/superpowers/plans/`. **Read the design before changing anything**, and
 keep it current (see Documentation Requirements in [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)).
