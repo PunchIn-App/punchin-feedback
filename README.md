@@ -2,7 +2,7 @@
 
 [![License: BUSL-1.1](https://img.shields.io/badge/license-BUSL--1.1-2D5BF5?style=flat)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/PunchIn-App/punchin-feedback/ci.yml?branch=main&style=flat&label=CI&color=2D5BF5)](https://github.com/PunchIn-App/punchin-feedback/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.1-2D5BF5?style=flat)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-2D5BF5?style=flat)](docs/CHANGELOG.md)
 
 Account-free **bug report / feature request** intake for
 [PunchIn](https://github.com/PunchIn-App/punchin).
