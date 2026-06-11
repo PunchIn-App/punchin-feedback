@@ -166,4 +166,20 @@ describe('app context (from=app)', () => {
     expect(html).not.toContain('id="close-window"');
     expect(html).not.toContain('window.close()');
   });
+
+  // window.close() is only honoured with an opener or a <2-entry history
+  // stack. The app opens us with noopener, so the app-context form submits
+  // via fetch() and replaces the document in place — keeping the stack at one
+  // entry so the success page's Close button stays permitted.
+  it('the app-context form submits via fetch to keep the window closable', () => {
+    const html = renderForm(bug, { kind: 'bug', fromApp: true });
+    expect(html).toContain("fetch('/submit'");
+    expect(html).toContain('document.open();document.write(html);document.close();');
+    expect(html).toContain('f.submit()'); // native-POST fallback on fetch failure
+  });
+
+  it('direct-visit forms submit natively (no fetch interceptor)', () => {
+    const html = renderForm(bug, { kind: 'bug' });
+    expect(html).not.toContain("fetch('/submit'");
+  });
 });
