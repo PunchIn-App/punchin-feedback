@@ -164,10 +164,13 @@ GitHub's own issue forms, so they can't diverge:
   params** that the PunchIn app passes when it links in (§14). Direct visitors leave them to fill
   manually (version is shown in the app's Settings → About). All prefilled fields stay editable.
 - `from=app` — not a field: marks app context. The app opens these pages in an in-app browser
-  overlay (Android Custom Tab / iOS in-app Safari) that no navigation can escape, so in this
-  context the form drops the "← PunchIn" root link and success/message pages show a
-  "close this window" hint instead of a root link (issue #6). Carried through the form via a
-  hidden input, like `theme`/`accent`. Direct visitors get a "Back to PunchIn" link.
+  overlay (Android Custom Tab / iOS in-app Safari) or a new tab — never in its own context — and
+  no navigation can escape the overlays, so in this context the form drops the "← PunchIn" root
+  link and success/message pages replace the root link with a "close this window" line plus a
+  best-effort **Close** button: `window.close()` works in plain script-opened tabs; where the
+  overlay refuses it the button swaps for a pre-rendered hint pointing at the overlay's own ✕
+  (issue #6). Carried through the form via a hidden input, like `theme`/`accent`. Direct
+  visitors get a "Back to PunchIn" link.
 
 **Reporter section** ("Email me about this — optional"), separate from the issue schema:
 
