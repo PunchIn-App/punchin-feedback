@@ -19,18 +19,20 @@ export const sanitizeAccent = (a) => (/^#[0-9a-fA-F]{3,8}$/.test(a || '') ? a : 
 // (carried through the form like theme/accent), drop every root link and
 // offer a Close button instead.
 //
-// Making window.close() actually work: browsers only honour close() when the
-// window has an opener, or when its back/forward stack holds fewer than two
-// entries (the OAuth-popup pattern — redirects reuse the entry, so auth tabs
-// may self-close). The app keeps the opener on these links (covers plain
-// tabs, incl. Firefox which honours only that condition), but the Android
-// Custom Tab hop severs any opener — and a native POST to /submit would be
-// entry #2 — so in app context the form is submitted via fetch() and the
-// response replaces the document in place (document.open/write reuses the
-// single history entry). Where an overlay still refuses close() (e.g. iOS
-// in-app Safari), the button swaps to pointing at the overlay's own ✕. The
-// static "close this window" line and the native form POST cover the no-JS
-// case.
+// Making window.close() work WITHOUT an opener: the app marks these links
+// from=app only when it's an installed PWA (the in-app-overlay case) and keeps
+// noopener,noreferrer on them, so we never receive a window.opener and must not
+// depend on one — that keeps the app safe from reverse tabnabbing (punchin#277).
+// Browsers also honour close() when the back/forward stack holds fewer than two
+// entries (the OAuth-popup pattern — redirects reuse the entry, so auth tabs may
+// self-close); a native POST to /submit would be entry #2, so in app context the
+// form is submitted via fetch() and the response replaces the document in place
+// (document.open/write reuses the single history entry). close() then works in
+// Android Chrome Custom Tabs and similar Chromium overlays with no opener. Where
+// the engine refuses a script close() without an opener anyway (iOS in-app
+// Safari; Firefox honours only the opener condition), the button reveals a hint
+// pointing at the overlay's own ✕ — which always returns the user. The static
+// "close this window" line and the native form POST cover the no-JS case.
 const backLink = (fromApp) => (fromApp ? '' : '<a class="back" href="/">← PunchIn</a>');
 const AJAX_SUBMIT_SCRIPT = `<script>
 (function(){

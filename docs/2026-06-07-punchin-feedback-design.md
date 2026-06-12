@@ -163,19 +163,20 @@ GitHub's own issue forms, so they can't diverge:
 - `version` / `install-type` — a standalone page can't know these, so they **prefill from query
   params** that the PunchIn app passes when it links in (§14). Direct visitors leave them to fill
   manually (version is shown in the app's Settings → About). All prefilled fields stay editable.
-- `from=app` — not a field: marks app context. The app opens these pages in an in-app browser
-  overlay (Android Custom Tab / iOS in-app Safari) or a new tab — never in its own context — and
-  no navigation can escape the overlays, so in this context the form drops the "← PunchIn" root
-  link and success/message pages replace the root link with a "close this window" line plus a
-  **Close** button (issue #6). Browsers only honour `window.close()` with an opener or a
-  back/forward stack of fewer than two entries (the OAuth-popup pattern) — so both are kept
-  true: the app opens these links **with** their opener (no `noopener`; first-party target, and
-  Firefox honours only the opener condition), and the app-context form submits via `fetch()`
-  with the response replacing the document in place — the stack stays at one entry, which is
-  what saves Android Custom Tabs (the WebAPK→CCT hop severs any opener). Where a context still
-  refuses (e.g. iOS in-app Safari) the button swaps for a pre-rendered hint pointing at the
-  overlay's own ✕; no-JS and fetch-failure fall back to the native POST. Carried through the
-  form via a hidden input, like `theme`/`accent`. Direct visitors get a "Back to PunchIn" link
+- `from=app` — not a field: marks app context. The app sends it **only when it's an installed
+  PWA**, where it opens these pages in an in-app browser overlay (Android Custom Tab / iOS in-app
+  Safari) no navigation can escape; so in this context the form drops the "← PunchIn" root link
+  and success/message pages replace it with a "close this window" line plus a **Close** button
+  (issue #6). Browsers only honour `window.close()` with an opener or a back/forward stack of
+  fewer than two entries (the OAuth-popup pattern). We rely on the **second** condition so the
+  app can keep `noopener,noreferrer` on these links — no `window.opener` is handed to us, so
+  there's no reverse-tabnabbing surface (punchin#277): the app-context form submits via `fetch()`
+  with the response replacing the document in place, so the stack stays at one entry, which is
+  what lets Android Custom Tabs and similar Chromium overlays close with no opener. Where an
+  engine refuses a script `close()` without an opener anyway (iOS in-app Safari; Firefox honours
+  only the opener condition) the button swaps for a pre-rendered hint pointing at the overlay's
+  own ✕; no-JS and fetch-failure fall back to the native POST. Carried through the form via a
+  hidden input, like `theme`/`accent`. Direct visitors get a "Back to PunchIn" link
   and always submit natively.
 
 **Reporter section** ("Email me about this — optional"), separate from the issue schema:
