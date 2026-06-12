@@ -168,13 +168,15 @@ GitHub's own issue forms, so they can't diverge:
   no navigation can escape the overlays, so in this context the form drops the "← PunchIn" root
   link and success/message pages replace the root link with a "close this window" line plus a
   **Close** button (issue #6). Browsers only honour `window.close()` with an opener or a
-  back/forward stack of fewer than two entries (the OAuth-popup pattern); the app uses
-  `noopener`, so the app-context form submits via `fetch()` and the response replaces the
-  document in place — the stack stays at one entry and the Close button is permitted to dismiss
-  the tab/Custom Tab. Where a context still refuses (e.g. iOS in-app Safari) the button swaps
-  for a pre-rendered hint pointing at the overlay's own ✕; no-JS and fetch-failure fall back to
-  the native POST. Carried through the form via a hidden input, like `theme`/`accent`. Direct
-  visitors get a "Back to PunchIn" link and always submit natively.
+  back/forward stack of fewer than two entries (the OAuth-popup pattern) — so both are kept
+  true: the app opens these links **with** their opener (no `noopener`; first-party target, and
+  Firefox honours only the opener condition), and the app-context form submits via `fetch()`
+  with the response replacing the document in place — the stack stays at one entry, which is
+  what saves Android Custom Tabs (the WebAPK→CCT hop severs any opener). Where a context still
+  refuses (e.g. iOS in-app Safari) the button swaps for a pre-rendered hint pointing at the
+  overlay's own ✕; no-JS and fetch-failure fall back to the native POST. Carried through the
+  form via a hidden input, like `theme`/`accent`. Direct visitors get a "Back to PunchIn" link
+  and always submit natively.
 
 **Reporter section** ("Email me about this — optional"), separate from the issue schema:
 

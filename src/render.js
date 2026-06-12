@@ -22,13 +22,15 @@ export const sanitizeAccent = (a) => (/^#[0-9a-fA-F]{3,8}$/.test(a || '') ? a : 
 // Making window.close() actually work: browsers only honour close() when the
 // window has an opener, or when its back/forward stack holds fewer than two
 // entries (the OAuth-popup pattern — redirects reuse the entry, so auth tabs
-// may self-close). The app opens us with noopener, and a native POST to
-// /submit would be entry #2 — so in app context the form is submitted via
-// fetch() and the response replaces the document in place (document.open/
-// write reuses the single history entry). Where an overlay still refuses
-// close() (e.g. iOS in-app Safari), the button swaps to pointing at the
-// overlay's own ✕. The static "close this window" line and the native form
-// POST cover the no-JS case.
+// may self-close). The app keeps the opener on these links (covers plain
+// tabs, incl. Firefox which honours only that condition), but the Android
+// Custom Tab hop severs any opener — and a native POST to /submit would be
+// entry #2 — so in app context the form is submitted via fetch() and the
+// response replaces the document in place (document.open/write reuses the
+// single history entry). Where an overlay still refuses close() (e.g. iOS
+// in-app Safari), the button swaps to pointing at the overlay's own ✕. The
+// static "close this window" line and the native form POST cover the no-JS
+// case.
 const backLink = (fromApp) => (fromApp ? '' : '<a class="back" href="/">← PunchIn</a>');
 const AJAX_SUBMIT_SCRIPT = `<script>
 (function(){
