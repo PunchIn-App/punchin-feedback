@@ -17,11 +17,11 @@
     "sync-templates": "node scripts/sync-bundled.mjs"
   },
   "dependencies": {
-    "js-yaml": "^5.2.0",
+    "js-yaml": "^5.2.2",
     "postal-mime": "^2.7.5"
   },
   "devDependencies": {
-    "vitest": "^4.1.9",
-    "wrangler": "^4.105.0"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.116.0"
   }
 }
