@@ -56,7 +56,10 @@ export async function handleSetupCallback(request, env) {
   const code = new URL(request.url).searchParams.get('code');
   if (!code) return setupPage('Setup error', '<h1 class="ds-h1">Missing code</h1><p class="ds-body">Start again at <a href="/setup">/setup</a>.</p>', 400);
 
-  const r = await fetch(`https://api.github.com/app-manifests/${code}/conversions`, {
+  // The code arrives from the query string, so encode it — raw, a crafted value
+  // (`../../…`) escapes this path segment and re-points the request at another
+  // api.github.com endpoint.
+  const r = await fetch(`https://api.github.com/app-manifests/${encodeURIComponent(code)}/conversions`, {
     method: 'POST',
     headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'punchin-feedback' },
   });

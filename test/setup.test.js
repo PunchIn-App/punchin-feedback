@@ -29,6 +29,18 @@ describe('GET /setup/callback', () => {
     expect(html).toContain('GITHUB_APP_PRIVATE_KEY');
   });
 
+  // `code` is attacker-suppliable (anyone can hit /setup/callback?code=…) and is
+  // spliced into an api.github.com path, so it has to be percent-encoded or it
+  // can walk out of /app-manifests/<code>/conversions into another API endpoint.
+  it('percent-encodes the code into the API path', async () => {
+    let called = '';
+    vi.stubGlobal('fetch', routeFetch({
+      'POST api.github.com': (r) => { called = r.url; return new Response('{}', { status: 502 }); },
+    }));
+    await worker.fetch(req('/setup/callback?code=' + encodeURIComponent('../../repos/x/y/issues?a=b')), makeEnv(), ctx);
+    expect(called).toBe('https://api.github.com/app-manifests/..%2F..%2Frepos%2Fx%2Fy%2Fissues%3Fa%3Db/conversions');
+  });
+
   it('400s without a code', async () => {
     const res = await worker.fetch(req('/setup/callback'), makeEnv(), ctx);
     expect(res.status).toBe(400);
