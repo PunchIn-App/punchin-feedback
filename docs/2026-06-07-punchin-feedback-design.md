@@ -388,7 +388,7 @@ repo is currently checked out there — branch *from* it, don't commit onto it).
    webhook URL to `https://feedback.trackmytime.today/webhook` + secret; subscribe to `Issues`.
 2. Create the `FEEDBACK` KV namespace and the `ATTACHMENTS` R2 bucket (+ a 365-day lifecycle rule).
 3. Add the Worker custom domain `feedback.trackmytime.today` + the daily Cron Trigger.
-4. Confirm `feedback@trackmytime.today` / the sending domain are onboarded for Email Sending.
+4. Onboard `feedback@trackmytime.today` / the sending domain for Email Sending.
    *(In progress on the operator side.)*
 5. Set secrets (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`, `UNSUB_SECRET`,
    optional `TURNSTILE_SECRET`).
