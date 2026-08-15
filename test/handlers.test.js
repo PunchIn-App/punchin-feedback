@@ -318,6 +318,35 @@ describe('GET /unsubscribe', () => {
   });
 });
 
+// Every response this worker generates is hardened the same way. serveImage is
+// the sharpest case: it streams user-uploaded bytes back with
+// Content-Disposition: inline, so a sniffable content-type there is an XSS
+// primitive on our own origin.
+describe('security headers', () => {
+  const expectHardened = (res) => {
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+  };
+
+  it('are set on the form, the error page, the success page and the unsubscribe page', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    expectHardened(await worker.fetch(req('/bug'), env, ctx));
+    expectHardened(await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ title: '' }) }), env, ctx)); // form error
+    expectHardened(await worker.fetch(req('/submit', { method: 'POST', body: bugForm() }), env, ctx)); // success
+    expectHardened(await worker.fetch(req('/unsubscribe?token=bad'), env, ctx)); // error page
+  });
+
+  it('are set on served attachments', async () => {
+    const env = makeEnv();
+    await env.ATTACHMENTS.put('pic.png', PNG, { httpMetadata: { contentType: 'image/png' } });
+    const res = await worker.fetch(req('/a/pic.png'), env, ctx);
+    expectHardened(res);
+    expect(res.headers.get('content-type')).toBe('image/png'); // still served as its real type
+  });
+});
+
 describe('GET /a/<key> and scheduled', () => {
   it('serves a stored image', async () => {
     const env = makeEnv();

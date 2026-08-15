@@ -34,3 +34,12 @@ describe('GET /setup/callback', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('setup page headers', () => {
+  it('the setup pages are hardened like every other page', async () => {
+    const res = await worker.fetch(req('/setup'), makeEnv(), ctx);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+});

@@ -16,6 +16,7 @@ import { signUnsub, verifyUnsub } from './unsubscribe.js';
 import { checkHoneypot, rateLimit, verifyTurnstile } from './spam.js';
 import { renderForm, renderSuccess, renderError, renderMessage, sanitizeTheme, sanitizeAccent } from './render.js';
 import { handleSetup, handleSetupCallback } from './setup.js';
+import { withSecurityHeaders } from './headers.js';
 
 const YEAR_MS = 365 * 24 * 3600 * 1000;
 const DAY30_MS = 30 * 24 * 3600 * 1000;
@@ -35,7 +36,8 @@ async function replyAddress(env, n) {
   return `comment+${replyId}@${replyDomain(env)}`;
 }
 
-const html = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
+const html = (body, status = 200) =>
+  new Response(body, { status, headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8' }) });
 // `ui` carries the user's theme/accent + app context (from the app) through
 // error/success pages.
 const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme, fromApp: ui.fromApp }), status);
