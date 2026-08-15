@@ -15,11 +15,13 @@ function pageHtml(title, inner) {
 <body><main class="card">${inner}</main></body></html>`;
 }
 
-// Every setup response goes out hardened (see headers.js).
+// Every setup response goes out hardened (see headers.js) and uncached: the
+// callback page renders the GitHub App's private key and webhook secret, which
+// must never reach a browser/proxy cache or a back/forward restore.
 const setupPage = (title, inner, status = 200) =>
   new Response(pageHtml(title, inner), {
     status,
-    headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8' }),
+    headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }),
   });
 
 export function handleSetup(request, env) {

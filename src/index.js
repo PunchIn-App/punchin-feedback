@@ -36,8 +36,14 @@ async function replyAddress(env, n) {
   return `comment+${replyId}@${replyDomain(env)}`;
 }
 
+// no-store: these pages echo back what the reporter typed (prefilled fields,
+// their email address, the filed issue link), so they must not be written to a
+// browser/proxy cache — nor restored from one on a shared device.
 const html = (body, status = 200) =>
-  new Response(body, { status, headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8' }) });
+  new Response(body, {
+    status,
+    headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }),
+  });
 // `ui` carries the user's theme/accent + app context (from the app) through
 // error/success pages.
 const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme, fromApp: ui.fromApp }), status);

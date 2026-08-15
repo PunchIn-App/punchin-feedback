@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import worker, { stripQuoted } from '../src/index.js';
 import { makeEnv, ctx, routeFetch } from './helpers.js';
+import { putImage } from '../src/attachments.js';
 import { bundled } from '../src/bundledTemplates.js';
 import { signUnsub } from '../src/unsubscribe.js';
 
@@ -344,6 +345,24 @@ describe('security headers', () => {
     const res = await worker.fetch(req('/a/pic.png'), env, ctx);
     expectHardened(res);
     expect(res.headers.get('content-type')).toBe('image/png'); // still served as its real type
+  });
+
+  // Rendered pages echo back what the reporter typed (prefilled description,
+  // their email address) and must not sit in a shared or on-disk cache. The
+  // immutable, content-addressed attachments must keep caching.
+  it('pages are no-store; attachments keep their long-lived cache', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    for (const res of [
+      await worker.fetch(req('/bug'), env, ctx),
+      await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ 'reporter-email': 'r@example.com' }) }), env, ctx),
+      await worker.fetch(req('/unsubscribe?token=bad'), env, ctx),
+    ]) {
+      expect(res.headers.get('cache-control')).toBe('no-store');
+    }
+    const key = await putImage(env, { bytes: PNG, type: 'image/png', ext: 'png', name: 'a.png' });
+    const img = await worker.fetch(req(`/a/${key}`), env, ctx);
+    expect(img.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
   });
 });
 

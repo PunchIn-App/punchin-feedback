@@ -42,4 +42,14 @@ describe('setup page headers', () => {
     expect(res.headers.get('x-frame-options')).toBe('DENY');
     expect(res.headers.get('referrer-policy')).toBe('no-referrer');
   });
+
+  // The callback page prints the App's private key and webhook secret; it must
+  // never be written to a cache (browser, proxy, or back/forward store).
+  it('the setup pages are never cached', async () => {
+    vi.stubGlobal('fetch', routeFetch({
+      'POST /app-manifests/': () => new Response(JSON.stringify({ id: 999, slug: 's', html_url: 'https://github.com/apps/s', webhook_secret: 'whs_secret', pem: 'KEY' }), { status: 201 }),
+    }));
+    expect((await worker.fetch(req('/setup'), makeEnv(), ctx)).headers.get('cache-control')).toBe('no-store');
+    expect((await worker.fetch(req('/setup/callback?code=abc123'), makeEnv(), ctx)).headers.get('cache-control')).toBe('no-store');
+  });
 });
