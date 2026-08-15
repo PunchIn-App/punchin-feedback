@@ -24,8 +24,19 @@ describe('rateLimit', () => {
 describe('verifyTurnstile', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('skips (passes) when not configured', async () => {
-    expect(await verifyTurnstile(makeEnv({ TURNSTILE_SECRET: '' }), 'tok', '1.1.1.1')).toBe(true);
+  it('skips (passes) when Turnstile is off entirely (no sitekey, no secret)', async () => {
+    expect(await verifyTurnstile(makeEnv({ TURNSTILE_SITEKEY: '', TURNSTILE_SECRET: '' }), 'tok', '1.1.1.1')).toBe(true);
+  });
+
+  // A rendered widget with no secret is always a misconfiguration: the form
+  // LOOKS protected while every submission sails through. Fail closed and say so.
+  it('fails closed (and logs) when the sitekey is set but the secret is missing', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubGlobal('fetch', () => { throw new Error('must not call siteverify without a secret'); });
+    expect(await verifyTurnstile(makeEnv({ TURNSTILE_SITEKEY: '0x4AAAAAADgd6hZdHvZeL3yL', TURNSTILE_SECRET: '' }), 'tok', '1.1.1.1')).toBe(false);
+    expect(err).toHaveBeenCalled();
+    expect(String(err.mock.calls[0][0])).toMatch(/TURNSTILE_SECRET/);
+    err.mockRestore();
   });
 
   it('passes on success', async () => {

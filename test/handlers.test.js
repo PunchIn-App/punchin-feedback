@@ -113,6 +113,20 @@ describe('POST /submit', () => {
     expect(issued).toBe(false);
   });
 
+  // A deployment with the widget configured but the secret missing must not
+  // silently accept everything — the bot gate fails closed at the route level too.
+  it('refuses to file when a Turnstile sitekey is set but the secret is missing', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem, TURNSTILE_SITEKEY: '0xSITEKEY', TURNSTILE_SECRET: '' });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let issued = false;
+    vi.stubGlobal('fetch', routeFetch({ ...ghRoutes, 'POST /issues': () => { issued = true; return new Response('{}', { status: 201 }); } }));
+    const res = await worker.fetch(req('/submit', { method: 'POST', body: bugForm() }), env, ctx);
+    expect(res.status).toBe(400);
+    expect(issued).toBe(false);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
+
   it('carries from=app through to an overlay-safe success page (issue #6)', async () => {
     const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
     vi.stubGlobal('fetch', routeFetch(ghRoutes));
