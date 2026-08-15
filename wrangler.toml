@@ -54,3 +54,7 @@ IMG_MAX_COUNT    = "5"
 # Two-way comment replies: enabled — comment@trackmytime.today is routed to this
 # worker in Email Routing (set up 2026-06-08), so reply addresses don't bounce.
 ENABLE_EMAIL_REPLIES = "1"
+# ENABLE_SETUP is deliberately ABSENT: the one-time GitHub App bootstrap pages
+# (/setup, /setup/callback) are unauthenticated and the App already exists, so
+# they 404 in production. Set ENABLE_SETUP = "1" only while bootstrapping a
+# fresh deployment, then remove it (and redeploy) again.
