@@ -80,6 +80,29 @@ describe('untrusted submissions cannot abuse the issue markdown', () => {
     expect(body).toContain('### Expected behaviour\n\nthe @ sign');
   });
 
+  // GitHub only linkifies an @ at the start of the string or after a non-word
+  // character, so an @ preceded by a word character can never be a mention.
+  // Neutralising those anyway corrupts ordinary text with invisible characters —
+  // and on an account-free reporter, an email address in the description is the
+  // normal case, not an edge case.
+  it('leaves an email address intact (the @ cannot start a mention)', () => {
+    const body = formatIssueBody(bug, { ...values, fields: { ...values.fields, expected: 'reach me at rob@example.com' } }, {});
+    expect(body).toContain('reach me at rob@example.com');
+    expect(body).not.toContain(ZWSP);
+  });
+
+  it('leaves version specifiers and user@host strings intact', () => {
+    const body = formatIssueBody(bug, { ...values, fields: { ...values.fields, expected: 'npm pkg@2.1.0 on user@host:/tmp' } }, {});
+    expect(body).toContain('npm pkg@2.1.0 on user@host:/tmp');
+    expect(body).not.toContain(ZWSP);
+  });
+
+  it('still neutralises a mention that follows punctuation or a newline', () => {
+    const body = formatIssueBody(bug, { ...values, fields: { ...values.fields, expected: 'cc (@octocat) and\n@defunkt' } }, {});
+    expect(body).toContain(`(@${ZWSP}octocat)`);
+    expect(body).toContain(`\n@${ZWSP}defunkt`);
+  });
+
   it('picks a fence longer than any backtick run in a rendered textarea', () => {
     const rendered = parseIssueForm(
       ['name: x', 'body:', '  - type: textarea', '    id: code', '    attributes:', '      label: Code', '      render: js'].join('\n')

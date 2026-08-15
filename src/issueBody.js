@@ -19,11 +19,18 @@ const toArray = (raw) => (Array.isArray(raw) ? raw : raw == null ? [] : [raw]);
 //    after the @ stops GitHub's mention filter from linkifying it (a username
 //    must follow the @ immediately) while the text still reads as "@octocat".
 //    Only an @ that could start a mention is touched, so a bare "@" survives.
+//    GitHub linkifies an @ only at the start of the text or after a non-word
+//    character, so an @ preceded by a word character cannot be a mention. That
+//    guard matters here rather than being mere tidiness: this is an account-free
+//    reporter, so "email me at rob@example.com" is ordinary content, and
+//    neutralising it would hand the maintainer an address with an invisible
+//    U+200B inside. Same for pasted log lines, user@host and pkg@2.1.0.
 //    NOT applied inside code fences: GitHub's mention filter already skips
 //    pre/code, and injecting invisible characters into pasted code would corrupt
 //    it for anyone who copies it back out (`@media`, decorators, annotations).
 const ZWSP = '\u200B'; // zero-width space, written escaped so it stays visible in source
-const sanitize = (raw) => String(raw ?? '').trim().replace(/@(?=[A-Za-z0-9])/g, `@${ZWSP}`);
+const sanitize = (raw) =>
+  String(raw ?? '').trim().replace(/(^|[^A-Za-z0-9_])@(?=[A-Za-z0-9])/g, (_m, before) => `${before}@${ZWSP}`);
 
 // 2. Fence escape. A fixed ``` fence is closed by any ``` the submitter includes,
 //    after which the rest of their value is rendered as markdown inside a section
