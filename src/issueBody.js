@@ -22,7 +22,7 @@ const toArray = (raw) => (Array.isArray(raw) ? raw : raw == null ? [] : [raw]);
 //    NOT applied inside code fences: GitHub's mention filter already skips
 //    pre/code, and injecting invisible characters into pasted code would corrupt
 //    it for anyone who copies it back out (`@media`, decorators, annotations).
-const ZWSP = '​';
+const ZWSP = '\u200B'; // zero-width space, written escaped so it stays visible in source
 const sanitize = (raw) => String(raw ?? '').trim().replace(/@(?=[A-Za-z0-9])/g, `@${ZWSP}`);
 
 // 2. Fence escape. A fixed ``` fence is closed by any ``` the submitter includes,

@@ -49,7 +49,7 @@ describe('buildIssue', () => {
 // The values below arrive from an anonymous public form and are pasted straight
 // into markdown we file under our own GitHub App identity.
 describe('untrusted submissions cannot abuse the issue markdown', () => {
-  const ZWSP = '​';
+  const ZWSP = '\u200B'; // zero-width space, written escaped so it stays visible in source
 
   it('neutralises @mentions so a submission cannot ping real people', () => {
     const body = formatIssueBody(bug, {
