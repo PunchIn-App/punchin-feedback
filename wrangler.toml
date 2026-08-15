@@ -8,6 +8,12 @@ routes = [
   { pattern = "feedback.trackmytime.today", custom_domain = true },
 ]
 
+# Workers Logs. Without this, console output (e.g. the fail-closed Turnstile
+# misconfiguration warning in spam.js) is only visible while a `wrangler tail` is
+# attached — nothing is retained to look back at after an incident.
+[observability]
+enabled = true
+
 # Static brand assets (CSS + self-hosted Noto WOFF2). Asset-first routing with
 # not_found_handling="none" means only real files under ./assets/ are served
 # directly; every other path falls through to the Worker's fetch(). Do NOT add
