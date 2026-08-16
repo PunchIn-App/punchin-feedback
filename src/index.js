@@ -16,6 +16,7 @@ import { signUnsub, verifyUnsub } from './unsubscribe.js';
 import { checkHoneypot, rateLimit, verifyTurnstile } from './spam.js';
 import { renderForm, renderSuccess, renderError, renderMessage, sanitizeTheme, sanitizeAccent } from './render.js';
 import { handleSetup, handleSetupCallback } from './setup.js';
+import { withSecurityHeaders } from './headers.js';
 
 const YEAR_MS = 365 * 24 * 3600 * 1000;
 const DAY30_MS = 30 * 24 * 3600 * 1000;
@@ -35,7 +36,14 @@ async function replyAddress(env, n) {
   return `comment+${replyId}@${replyDomain(env)}`;
 }
 
-const html = (body, status = 200) => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8' } });
+// no-store: these pages echo back what the reporter typed (prefilled fields,
+// their email address, the filed issue link), so they must not be written to a
+// browser/proxy cache — nor restored from one on a shared device.
+const html = (body, status = 200) =>
+  new Response(body, {
+    status,
+    headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }),
+  });
 // `ui` carries the user's theme/accent + app context (from the app) through
 // error/success pages.
 const htmlError = (env, msg, status, ui = {}) => html(renderError(msg, { accent: ui.accent || env.ACCENT, theme: ui.theme, fromApp: ui.fromApp }), status);
@@ -311,8 +319,18 @@ export default {
     if (pathname === '/submit') return request.method === 'POST' ? handleSubmit(request, env) : new Response('Method not allowed', { status: 405 });
     if (pathname === '/webhook') return request.method === 'POST' ? handleWebhook(request, env) : new Response('Method not allowed', { status: 405 });
     if (pathname === '/unsubscribe') return handleUnsubscribe(request, env);
-    if (pathname === '/setup') return handleSetup(request, env);
-    if (pathname === '/setup/callback') return handleSetupCallback(request, env);
+    // One-time GitHub App bootstrap. Unauthenticated by nature (there is no App
+    // yet to authenticate against), and once the App exists it is pure attack
+    // surface: /setup hands anyone an App-creation form pointed at this worker's
+    // webhook, and /setup/callback prints App credentials. It is therefore
+    // opt-in — with ENABLE_SETUP unset (the production state) both paths fall
+    // through to the same 404 as any unknown path, so their existence isn't
+    // even discoverable. Re-enable for a fresh deployment with
+    // `ENABLE_SETUP = "1"`, then remove it again.
+    if (env.ENABLE_SETUP === '1') {
+      if (pathname === '/setup') return handleSetup(request, env);
+      if (pathname === '/setup/callback') return handleSetupCallback(request, env);
+    }
 
     const asset = pathname.match(/^\/a\/([^/]+)$/);
     if (asset) return serveImage(env, asset[1]);

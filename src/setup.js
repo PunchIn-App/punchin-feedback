@@ -3,6 +3,8 @@
 // the operator creates the App, GitHub redirects to /setup/callback?code=… which
 // exchanges the code for the App credentials and shows the exact secret commands.
 
+import { withSecurityHeaders } from './headers.js';
+
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -12,6 +14,15 @@ function pageHtml(title, inner) {
 <title>${esc(title)}</title><link rel="stylesheet" href="/styles.css"></head>
 <body><main class="card">${inner}</main></body></html>`;
 }
+
+// Every setup response goes out hardened (see headers.js) and uncached: the
+// callback page renders the GitHub App's private key and webhook secret, which
+// must never reach a browser/proxy cache or a back/forward restore.
+const setupPage = (title, inner, status = 200) =>
+  new Response(pageHtml(title, inner), {
+    status,
+    headers: withSecurityHeaders({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }),
+  });
 
 export function handleSetup(request, env) {
   const origin = new URL(request.url).origin;
@@ -38,19 +49,22 @@ export function handleSetup(request, env) {
 </form>
 <p class="hint">Prefer a personal account instead of the org? Replace the URL with
 <code>https://github.com/settings/apps/new</code>.</p>`;
-  return new Response(pageHtml('Set up the GitHub App', inner), { headers: { 'content-type': 'text/html; charset=utf-8' } });
+  return setupPage('Set up the GitHub App', inner);
 }
 
 export async function handleSetupCallback(request, env) {
   const code = new URL(request.url).searchParams.get('code');
-  if (!code) return new Response(pageHtml('Setup error', '<h1 class="ds-h1">Missing code</h1><p class="ds-body">Start again at <a href="/setup">/setup</a>.</p>'), { status: 400, headers: { 'content-type': 'text/html; charset=utf-8' } });
+  if (!code) return setupPage('Setup error', '<h1 class="ds-h1">Missing code</h1><p class="ds-body">Start again at <a href="/setup">/setup</a>.</p>', 400);
 
-  const r = await fetch(`https://api.github.com/app-manifests/${code}/conversions`, {
+  // The code arrives from the query string, so encode it — raw, a crafted value
+  // (`../../…`) escapes this path segment and re-points the request at another
+  // api.github.com endpoint.
+  const r = await fetch(`https://api.github.com/app-manifests/${encodeURIComponent(code)}/conversions`, {
     method: 'POST',
     headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'punchin-feedback' },
   });
   if (r.status !== 201) {
-    return new Response(pageHtml('Setup error', `<h1 class="ds-h1">Conversion failed (${r.status})</h1><p class="ds-body">The code expires an hour after creation — retry from <a href="/setup">/setup</a>.</p>`), { status: 502, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    return setupPage('Setup error', `<h1 class="ds-h1">Conversion failed (${r.status})</h1><p class="ds-body">The code expires an hour after creation — retry from <a href="/setup">/setup</a>.</p>`, 502);
   }
   const app = await r.json();
   const inner = `
@@ -71,5 +85,5 @@ npx wrangler secret put GITHUB_WEBHOOK_SECRET    # ${esc(app.webhook_secret || '
 npx wrangler secret put UNSUB_SECRET             # any long random string
 # (optional, if using Turnstile) npx wrangler secret put TURNSTILE_SECRET</pre>
 <p class="hint">Then delete app.pem and app.pkcs8.pem. Deploy with <code>npm run deploy</code>.</p>`;
-  return new Response(pageHtml('App created', inner), { headers: { 'content-type': 'text/html; charset=utf-8' } });
+  return setupPage('App created', inner);
 }

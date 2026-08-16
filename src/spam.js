@@ -25,10 +25,26 @@ export async function rateLimit(env, ip) {
   return true;
 }
 
-// true = passed (or not configured); false = failed/forged. Honeypot + rate-limit
-// still apply when Turnstile is off, so this can safely no-op for self-hosters.
+// true = passed (or Turnstile is deliberately off); false = failed/forged/misconfigured.
+//
+// "Deliberately off" is the *sitekey* being unset: with no TURNSTILE_SITEKEY the
+// form renders no widget and self-hosters run on honeypot + rate-limit alone
+// (design §10). A sitekey WITHOUT a secret is never deliberate — the widget
+// renders, so the form looks protected, while a secret-less pass would wave
+// every submission (incl. forged tokens) through. That combination fails closed
+// and is logged, because it can only be a deployment mistake.
+//
+// Local dev: `.dev.vars` overrides `wrangler.toml [vars]`, so either blank
+// TURNSTILE_SITEKEY there (Turnstile off) or use Cloudflare's always-passes test
+// pair — sitekey 1x00000000000000000000AA / secret 1x0000000000000000000000000000000AA.
 export async function verifyTurnstile(env, token, ip) {
-  if (!env.TURNSTILE_SECRET) return true;
+  if (!env.TURNSTILE_SECRET) {
+    if (env.TURNSTILE_SITEKEY) {
+      console.error('turnstile: TURNSTILE_SECRET is not set but TURNSTILE_SITEKEY is — failing closed (set the secret, or clear the sitekey to run without Turnstile)');
+      return false;
+    }
+    return true;
+  }
   const form = new FormData();
   form.append('secret', env.TURNSTILE_SECRET);
   form.append('response', token || '');

@@ -42,6 +42,7 @@ export function fakeR2() {
         httpEtag: `"${key}"`,
         writeHttpMetadata(headers) {
           if (o.httpMetadata?.contentType) headers.set('content-type', o.httpMetadata.contentType);
+          if (o.httpMetadata?.cacheControl) headers.set('cache-control', o.httpMetadata.cacheControl);
         },
       };
     },

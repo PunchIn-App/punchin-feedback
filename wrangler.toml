@@ -8,6 +8,12 @@ routes = [
   { pattern = "feedback.trackmytime.today", custom_domain = true },
 ]
 
+# Workers Logs. Without this, console output (e.g. the fail-closed Turnstile
+# misconfiguration warning in spam.js) is only visible while a `wrangler tail` is
+# attached — nothing is retained to look back at after an incident.
+[observability]
+enabled = true
+
 # Static brand assets (CSS + self-hosted Noto WOFF2). Asset-first routing with
 # not_found_handling="none" means only real files under ./assets/ are served
 # directly; every other path falls through to the Worker's fetch(). Do NOT add
@@ -54,3 +60,7 @@ IMG_MAX_COUNT    = "5"
 # Two-way comment replies: enabled — comment@trackmytime.today is routed to this
 # worker in Email Routing (set up 2026-06-08), so reply addresses don't bounce.
 ENABLE_EMAIL_REPLIES = "1"
+# ENABLE_SETUP is deliberately ABSENT: the one-time GitHub App bootstrap pages
+# (/setup, /setup/callback) are unauthenticated and the App already exists, so
+# they 404 in production. Set ENABLE_SETUP = "1" only while bootstrapping a
+# fresh deployment, then remove it (and redeploy) again.

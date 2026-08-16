@@ -6,23 +6,62 @@
 //   - empty optional input/textarea -> `_No response_`; empty dropdown -> `None`
 //   - dropdown multi-select joined by ", "; checkboxes -> `- [x]` / `- [ ]`
 //   - textarea with `render:<lang>` -> value wrapped in a ```<lang> fence
+//     (widened past any backtick run in the value — see the fence note below)
 //   - headings use the field LABEL, not the id
 
 const toArray = (raw) => (Array.isArray(raw) ? raw : raw == null ? [] : [raw]);
 
+// Everything below is anonymous public input filed under our own GitHub App
+// identity, so two markdown abuses have to be closed off.
+//
+// 1. Mentions. "@octocat" / "@org/team" in an issue body notifies real people
+//    from our identity — a free spam-and-harassment relay. A zero-width space
+//    after the @ stops GitHub's mention filter from linkifying it (a username
+//    must follow the @ immediately) while the text still reads as "@octocat".
+//    Only an @ that could start a mention is touched, so a bare "@" survives.
+//    GitHub linkifies an @ only at the start of the text or after a non-word
+//    character, so an @ preceded by a word character cannot be a mention. That
+//    guard matters here rather than being mere tidiness: this is an account-free
+//    reporter, so "email me at rob@example.com" is ordinary content, and
+//    neutralising it would hand the maintainer an address with an invisible
+//    U+200B inside. Same for pasted log lines, user@host and pkg@2.1.0.
+//    NOT applied inside code fences: GitHub's mention filter already skips
+//    pre/code, and injecting invisible characters into pasted code would corrupt
+//    it for anyone who copies it back out (`@media`, decorators, annotations).
+const ZWSP = '\u200B'; // zero-width space, written escaped so it stays visible in source
+const sanitize = (raw) =>
+  String(raw ?? '').trim().replace(/(^|[^A-Za-z0-9_])@(?=[A-Za-z0-9])/g, (_m, before) => `${before}@${ZWSP}`);
+
+// 2. Fence escape. A fixed ``` fence is closed by any ``` the submitter includes,
+//    after which the rest of their value is rendered as markdown inside a section
+//    that looks machine-generated. Use a fence one backtick longer than the
+//    longest run in the value, which CommonMark guarantees cannot be closed early.
+function fenceFor(value) {
+  const longest = (value.match(/`+/g) || []).reduce((max, run) => Math.max(max, run.length), 0);
+  return '`'.repeat(Math.max(3, longest + 1));
+}
+
 function renderField(field, raw) {
   if (field.type === 'dropdown') {
-    const vals = toArray(raw).filter(Boolean);
+    // Option values are client-supplied (the form is just HTML) — sanitize them.
+    const vals = toArray(raw).map(sanitize).filter(Boolean);
     return vals.length ? vals.join(', ') : 'None';
   }
   if (field.type === 'checkboxes') {
+    // Label text comes from the schema, not the submission; only the ticks do —
+    // and an exact match against the schema options is the strictest form of that.
     const selected = new Set(toArray(raw));
     return field.options.map((opt) => `- [${selected.has(opt) ? 'x' : ' '}] ${opt}`).join('\n');
   }
   // input / textarea
-  const v = String(raw ?? '').trim();
+  if (field.type === 'textarea' && field.render) {
+    const code = String(raw ?? '').trim();
+    if (!code) return '_No response_';
+    const fence = fenceFor(code);
+    return fence + field.render + '\n' + code + '\n' + fence;
+  }
+  const v = sanitize(raw);
   if (!v) return '_No response_';
-  if (field.type === 'textarea' && field.render) return '```' + field.render + '\n' + v + '\n```';
   return v;
 }
 
@@ -46,7 +85,7 @@ export function buildIssue(schema, values, { imageUrls = [], provenanceLabel = '
   const labels = [...(schema.labels || [])];
   if (provenanceLabel) labels.push(provenanceLabel);
   return {
-    title: String(values.title ?? '').trim(),
+    title: sanitize(values.title),
     body: formatIssueBody(schema, values, { imageUrls }),
     labels,
   };

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import worker, { stripQuoted } from '../src/index.js';
 import { makeEnv, ctx, routeFetch } from './helpers.js';
+import { putImage } from '../src/attachments.js';
 import { bundled } from '../src/bundledTemplates.js';
 import { signUnsub } from '../src/unsubscribe.js';
 
@@ -111,6 +112,20 @@ describe('POST /submit', () => {
     const res = await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ _hp: 'bot' }) }), env, ctx);
     expect(res.status).toBe(400);
     expect(issued).toBe(false);
+  });
+
+  // A deployment with the widget configured but the secret missing must not
+  // silently accept everything — the bot gate fails closed at the route level too.
+  it('refuses to file when a Turnstile sitekey is set but the secret is missing', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem, TURNSTILE_SITEKEY: '0xSITEKEY', TURNSTILE_SECRET: '' });
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let issued = false;
+    vi.stubGlobal('fetch', routeFetch({ ...ghRoutes, 'POST /issues': () => { issued = true; return new Response('{}', { status: 201 }); } }));
+    const res = await worker.fetch(req('/submit', { method: 'POST', body: bugForm() }), env, ctx);
+    expect(res.status).toBe(400);
+    expect(issued).toBe(false);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
   });
 
   it('carries from=app through to an overlay-safe success page (issue #6)', async () => {
@@ -301,6 +316,53 @@ describe('GET /unsubscribe', () => {
   it('bad token -> 400', async () => {
     const res = await worker.fetch(req('/unsubscribe?token=bad'), makeEnv(), ctx);
     expect(res.status).toBe(400);
+  });
+});
+
+// Every response this worker generates is hardened the same way. serveImage is
+// the sharpest case: it streams user-uploaded bytes back with
+// Content-Disposition: inline, so a sniffable content-type there is an XSS
+// primitive on our own origin.
+describe('security headers', () => {
+  const expectHardened = (res) => {
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+  };
+
+  it('are set on the form, the error page, the success page and the unsubscribe page', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    expectHardened(await worker.fetch(req('/bug'), env, ctx));
+    expectHardened(await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ title: '' }) }), env, ctx)); // form error
+    expectHardened(await worker.fetch(req('/submit', { method: 'POST', body: bugForm() }), env, ctx)); // success
+    expectHardened(await worker.fetch(req('/unsubscribe?token=bad'), env, ctx)); // error page
+  });
+
+  it('are set on served attachments', async () => {
+    const env = makeEnv();
+    await env.ATTACHMENTS.put('pic.png', PNG, { httpMetadata: { contentType: 'image/png' } });
+    const res = await worker.fetch(req('/a/pic.png'), env, ctx);
+    expectHardened(res);
+    expect(res.headers.get('content-type')).toBe('image/png'); // still served as its real type
+  });
+
+  // Rendered pages echo back what the reporter typed (prefilled description,
+  // their email address) and must not sit in a shared or on-disk cache. The
+  // immutable, content-addressed attachments must keep caching.
+  it('pages are no-store; attachments keep their long-lived cache', async () => {
+    const env = makeEnv({ GITHUB_APP_PRIVATE_KEY: pem });
+    vi.stubGlobal('fetch', routeFetch(ghRoutes));
+    for (const res of [
+      await worker.fetch(req('/bug'), env, ctx),
+      await worker.fetch(req('/submit', { method: 'POST', body: bugForm({ 'reporter-email': 'r@example.com' }) }), env, ctx),
+      await worker.fetch(req('/unsubscribe?token=bad'), env, ctx),
+    ]) {
+      expect(res.headers.get('cache-control')).toBe('no-store');
+    }
+    const key = await putImage(env, { bytes: PNG, type: 'image/png', ext: 'png', name: 'a.png' });
+    const img = await worker.fetch(req(`/a/${key}`), env, ctx);
+    expect(img.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
   });
 });
 

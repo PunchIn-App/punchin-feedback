@@ -5,6 +5,45 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-08-16
+
+Hardening pass across the public form, the filed-issue body, and the operator
+setup routes. `MINOR` (new configurable var; reporter-observable change to the
+filed issue).
+
+### Security
+
+- **The bot check now fails closed.** With `TURNSTILE_SECRET` unset, the check
+  returned a pass for every submission while the widget still rendered from the
+  public sitekey — so a misconfigured deployment looked protected and accepted
+  everything, with nothing in the logs to say so. A missing secret is always a
+  misconfiguration, so it is now treated as a failure rather than a bypass.
+- **Security headers on every response.** `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer` are now set on the
+  forms, the setup pages, and on user-uploaded attachments served from R2, which
+  are returned `Content-Disposition: inline` and so benefited most from `nosniff`.
+  A content-security policy is deliberately not included yet: the forms carry
+  inline scripts that must be hashed first.
+- **The setup routes are no longer reachable in production.** `/setup` and
+  `/setup/callback` were unauthenticated and had no completion gate, and the page
+  renders the GitHub App private key and webhook secret. They are now behind an
+  environment variable that is unset in production, and the pages that render
+  secrets send `cache-control: no-store`. The OAuth `code` is also URL-encoded
+  before being placed in an api.github.com path.
+
+### Changed
+
+- **Untrusted text is neutralised before it reaches the issue body.** A
+  submission could previously mention real GitHub users from this app's identity,
+  or close the code fence around a textarea value and continue in markdown. An
+  `@` that GitHub could linkify is now defused, and the fence is chosen to be
+  longer than any run of backticks in the value. An `@` that cannot begin a
+  mention is left alone, so email addresses, `user@host` strings and version
+  specifiers such as `pkg@2.1.0` survive intact.
+- **Workers Logs observability enabled.**
+
+---
+
 ## [1.2.0] — 2026-06-11
 
 ### Changed
