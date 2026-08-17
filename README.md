@@ -65,8 +65,14 @@ deploy.
 
 ### 2. The GitHub App (one-click)
 
-Deploy once (`npm run deploy`), then visit **`https://feedback.trackmytime.today/setup`** and click
-**Create the GitHub App**. It creates an App with `Issues: write` (file issues) + `Contents: read`
+The bootstrap pages are gated. They render the GitHub App private key and webhook secret, so
+`ENABLE_SETUP` is deliberately absent from `wrangler.toml` and both `/setup` and
+`/setup/callback` return 404 in production. To bootstrap: set `ENABLE_SETUP = "1"` in
+`wrangler.toml`, push to `main` (which deploys), visit
+**`https://feedback.trackmytime.today/setup`** and click **Create the GitHub App**, then remove
+the variable and push again.
+
+It creates an App with `Issues: write` (file issues) + `Contents: read`
 (read the issue templates live — needed when the target repo is **private**) and an `Issues` webhook
 pointed at `/webhook`. Install it on `PunchIn-App/punchin`; the callback page then shows the exact
 secret commands.
@@ -104,8 +110,12 @@ rate-limit still apply.
 
 ### 5. Deploy
 
+**Merging to `main` deploys.** Cloudflare Workers Builds is connected to this repo and deploys
+every push to `main` automatically, so a merged PR is live without anyone running a command. The
+`Workers Builds: punchin-feedback` check on a PR builds without deploying; only the merge ships.
+
 ```bash
-npm run deploy
+npm run deploy    # manual fallback only
 ```
 
 ### 6. Optional wiring

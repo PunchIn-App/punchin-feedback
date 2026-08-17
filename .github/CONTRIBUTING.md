@@ -60,9 +60,11 @@ of step with `templates/*.yml`).
 
 ## Deployment & secrets
 
-The worker is deployed with `npm run deploy` (`wrangler deploy`). The custom
-domain (`feedback.trackmytime.today`) and the daily retention cron are declared
-in `wrangler.toml` and provision on deploy — see the **Setup** section of
+The worker is deployed automatically by Cloudflare Workers Builds on every push
+to `main` — merging a PR ships it. `npm run deploy` (`wrangler deploy`) is the
+manual fallback, not the normal path. The custom domain
+(`feedback.trackmytime.today`) and the daily retention cron are declared in
+`wrangler.toml` and provision on deploy — see the **Setup** section of
 [`README.md`](../README.md).
 
 Configuration lives in `wrangler.toml`:
