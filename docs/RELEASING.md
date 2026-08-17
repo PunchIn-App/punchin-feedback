@@ -62,7 +62,12 @@ GitHub sidebar and the version badge line up with the code:
 
    (Or `gh release create vX.Y.Z --generate-notes` to let GitHub draft the
    notes from merged PRs, then edit to match the changelog.)
-5. Deploy: `npm run deploy`.
+5. Nothing to do — **the merge in step 3 already deployed it.** Workers Builds ships every
+   push to `main` automatically, so the code was live before the release existed. The release
+   records a version that is already running rather than publishing it, which is exactly why
+   this step is easy to skip. Create it in the same sitting as the merge.
+
+   `npm run deploy` remains available as a manual fallback.
 
 The tag name (`vX.Y.Z`) must match the `package.json` version exactly. Don't
 create a release for a version that isn't yet on `main`.
